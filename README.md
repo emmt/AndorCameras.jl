@@ -7,19 +7,19 @@ Development Kit (SDK).
 
 This document describes:
 
-* the [basic interface](#usage-for-the-end-user) which implements all the methods
-  specified by the
+* the [standard interface](#standard-interface) which implements all the
+  methods specified by the
   [`ScientificCameras`](https://github.com/emmt/ScientificCameras.jl)
   interface;
 
-* the [advanced interface](#advanced-usage) which provides access to all Andor
+* the [advanced interface](#advanced-interface) which provides access to all Andor
   cameras *features* and commands;
 
 * the [installation](#installation) of the
   [`AndorCameras`](https://github.com/emmt/AndorCameras.jl) package.
 
 
-## Usage for the end-user
+## Standard interface
 
 To use the `AndorCameras` package, just write:
 
@@ -28,9 +28,9 @@ using AndorCameras
 ```
 
 which provides all the methods specified by the
-[`ScientificCameras`](https://github.com/emmt/ScientificCameras.jl) interface
-which is fully documented [here](https://github.com/emmt/ScientificCameras.jl)
-and summarized below.
+[`ScientificCameras`](https://github.com/emmt/ScientificCameras.jl) interface.
+This interface is fully documented
+[here](https://github.com/emmt/ScientificCameras.jl) and summarized below.
 
 You may also want to:
 
@@ -77,11 +77,14 @@ A region of interest (ROI) may be selected by:
 setroi!(cam, [[xsub, ysub,] xoff, yoff,] width, height)
 ```
 
-where `xsub` and `ysub` are the dimensions of the macro-pixels (in pixels) when
-rebinning the pixels of the sensor (both assumed to be `1` if not specified),
-where `xoff` and `yoff` are the offsets (in pixels) of the ROI relative to the
-sensor (both assumed to be `0` if not specified), `width` and `height` are the
-dimensions of the ROI (in macro-pixels).
+where `xsub` and `ysub` are the dimensions of the macro-pixels (in pixels and
+both assumed to be `1` if not specified), `xoff` and `yoff` are the offsets (in
+pixels) of the ROI relative to the sensor (both assumed to be `0` if not
+specified), `width` and `height` are the dimensions of the ROI (in
+macro-pixels).
+
+*Macro-pixels* are blocks of `xsub` by `ysub` pixels when rebinning the pixels
+of the sensor.
 
 In the Andor SDK documentation, the rebinning [features](#features) are
 `AOIHBin` and `AOIVBin`, the offsets (plus one) are `AOILeft` and `AOITop` and
@@ -172,10 +175,10 @@ stop(cam)  # stop acquisition
 where it is assumed that `finished()` returns `true` when to stop and `false`
 otherwise.  Above, `img` is a 2D Julia array with the last captured image and
 `ticks` is the corresponding timestamp in seconds.  Releasing the captured
-image, with `release(cam)`, when it has been processed is intended to recycle
-the image buffer for another acquisition.  When the returned image is
-independent from the corresponding capture buffer, `release(cam)` does nothing
-but it is good practice to call this method when the captured image is no
+image with `release(cam)` when it has been processed is intended to recycle the
+image buffer for another acquisition.  When the returned image is independent
+from the corresponding capture buffer, `release(cam)` does nothing.  It is
+nevertheless good practice to call this method when the captured image is no
 longer needed because the code is more likely to work with no changes with
 another camera.
 
@@ -186,7 +189,7 @@ start(cam, T, nbufs)
 ```
 
 
-## Advanced usage
+## Advanced interface
 
 This section describes advanced use of the interface to Andor cameras provided
 by the `AndorCameras` module.  This may be useful to perform specific
@@ -330,7 +333,7 @@ send(cam, cmd)
 ## Installation
 
 `AndorCameras.jl` is not yet an [official Julia package](https://pkg.julialang.org/)
-so you have to clone the repository to install the module:
+so you have to clone the repository to install the package:
 
 ```julia
 Pkg.clone("https://github.com/emmt/AndorCameras.jl.git")
@@ -339,8 +342,8 @@ Pkg.build("AndorCameras")
 
 The build process assumes that
 [Andor Software Development Kit (SDK)](http://www.andor.com/scientific-software/software-development-kit)
-has been installed in the usual directory `/usr/local`.  See at the end of this
-section if you have installed the SDK elsewhere.
+has been installed in the usual directory `/usr/local` (read the end of this
+section if you have installed the SDK elsewhere).
 
 Later, it is sufficient to do:
 
@@ -349,8 +352,10 @@ Pkg.update("AndorCameras")
 Pkg.build("AndorCameras")
 ```
 
-to pull the latest version.  If you have `AndorCameras.jl` repository not
-managed at all by Julia's package manager, updating is a matter of:
+to pull the latest version.
+
+If you have `AndorCameras.jl` repository not managed at all by Julia's package
+manager, updating is a matter of:
 
 ```sh
 cd "$ANDOR/deps"
@@ -363,7 +368,7 @@ assuming `$ANDOR` is the path to the top level directory of the
 
 If Andor SDK is not installed in `/usr/local`, you can modify the `AT_DIR`,
 `AT_LIBDIR` and `AT_INCDIR` variables in [`deps/Makefile`](./deps/Makefile).
-It is better to override these variables on the command line and to update the
+It is however better to override these variables on the command line and to update the
 code and build the dependencies as follows:
 
 ```sh
