@@ -326,7 +326,7 @@ end
 
 # Extend method.
 function wait(cam::Camera, sec::Float64 = 0.0)
-    ms = (sec < 0.0 ? AT_INFINITE : round(Cuint, sec*1_000))
+    ms = (sec ≥ typemax(Float64) ? AT_INFINITE : round(Cuint, sec*1_000))
     _wait(cam, 1, ms)
 end
 
@@ -346,7 +346,13 @@ function _wait(cam::Camera, index::Int, ms::Integer)
     code = ccall((:AT_WaitBuffer, _DLL), Cint,
                  (Handle, Ptr{Ptr{UInt8}}, Ptr{Cint}, Cuint),
                  cam.handle, refptr, refsiz, ms)
-    code == AT_SUCCESS || throw(AndorError(:AT_WaitBuffer, code))
+    if code != AT_SUCCESS
+        if code == AT_ERR_TIMEDOUT
+            throw(TimeoutError())
+        else
+            throw(AndorError(:AT_WaitBuffer, code))
+        end
+    end
     ptr = refptr[]
     framesize = Int(refsiz[])
 

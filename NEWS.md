@@ -1,0 +1,1 @@
+- `wait` throws `ScientificCameras.TimeoutError`.

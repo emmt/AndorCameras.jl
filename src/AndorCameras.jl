@@ -13,7 +13,7 @@
 module AndorCameras
 
 importall ScientificCameras
-import ScientificCameras: ScientificCamera, ROI
+import ScientificCameras: TimeoutError, ScientificCamera, ROI
 using ScientificCameras.PixelFormats
 
 export
