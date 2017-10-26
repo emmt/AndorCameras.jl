@@ -10,8 +10,6 @@
 # Copyright (C) 2017, Éric Thiébaut.
 #
 
-const _DLL = "/usr/local/lib/libatcore.so"
-
 getnumberofdevices() = Int(_devicecount[])
 
 const _devicecount = Ref{Int64}()

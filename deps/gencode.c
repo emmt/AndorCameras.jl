@@ -16,20 +16,6 @@
 #include <wchar.h>
 #include <atcore.h>
 
-static void println(const char* str)
-{
-  if (str == NULL || str[0] == '\0') {
-    fputs("\n", stdout);
-  } else {
-    printf("%s\n", str);
-  }
-}
-
-static void newline()
-{
-  println(NULL);
-}
-
 #if 0
 /* Define a constant. */
 static void _define(const char* type, const char* name,
@@ -99,14 +85,7 @@ static void _define(const char* type, const char* name,
 
 int main()
 {
-
-#if 0 /* wchar_t is available as Cwchar_t in Julia. */
-  newline();
-  println("# C typedef.");
-  DEF_TYPEOF_TYPE(wchar_t, "");
-#endif
-  newline();
-  println("# Constants.");
+  printf("\nconst _DLL = \"%s\"\n", AT_DLL);
 #ifdef AT_INFINITE
   DEF_CONST(AT_INFINITE, " = Cint(%d)");
 #endif
@@ -235,6 +214,9 @@ int main()
 #endif
 #ifdef AT_ERR_DEVICEINUSE
   DEF_CONST(AT_ERR_DEVICEINUSE, " = Cint(%d)");
+#endif
+#ifdef AT_ERR_DEVICENOTFOUND
+  DEF_CONST(AT_ERR_DEVICENOTFOUND, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_HARDWARE_OVERFLOW
   DEF_CONST(AT_ERR_HARDWARE_OVERFLOW, " = Cint(%d)");

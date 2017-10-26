@@ -54,7 +54,12 @@ $COMMAND | sed -n -r >>"$DEST" \
                -e 'H' \
                -e '${x;s/^[ \n]*/    /;s/,[ \n]*$//;p}'
 
-# Second pass to generate code and definitions.
-$COMMAND >>"$DEST"
+# Second and third passes to generate code and definitions.
+echo >>"$DEST"
+echo >>"$DEST" "# Constants."
+$COMMAND | grep '^ *const AT_' >>"$DEST"
 echo >>"$DEST"
 echo >>"$DEST" "end # module Constants"
+echo >>"$DEST"
+echo >>"$DEST" "# Dynamic library."
+$COMMAND | grep '^ *const _DLL' >>"$DEST"
