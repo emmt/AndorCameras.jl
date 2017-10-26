@@ -287,14 +287,15 @@ function read(cam::Camera, ::Type{T}, num::Int;
               timeout::Real = defaulttimeout(cam, num + skip),
               truncate::Bool = false) where {T}
 
+    # Final time (in seconds).
+    timeout > zero(timeout) || error("invalid timeout")
+    final = time() + convert(Float64, timeout)
+
     # Allocate buffers prepare acquisition.
     _prepareacquisition!(cam, 4, T, num)
 
     # Set the camera to continuously acquires frames.
     cam[CycleMode] = "Continuous"
-
-    # Timeout (in milliseconds).
-    ms = round(Int, 1_500*(1/cam[FrameRate] + cam[ExposureTime]))
 
     # Allocate vector of images.
     imgs = Vector{Array{T,2}}(num)
@@ -306,7 +307,6 @@ function read(cam::Camera, ::Type{T}, num::Int;
     # Acquire all images (using 1 sec. of additional delay for the first
     # one).
     cnt = 0
-    first = true
     while cnt < num
         if skip > zero(skip)
             skip -= one(skip)
@@ -314,7 +314,7 @@ function read(cam::Camera, ::Type{T}, num::Int;
             cnt += 1
         end
         try
-            _wait(cam, cnt, (first ? ms + 1_000 : ms))
+            _wait(cam, cnt, round(Cuint, max(final - time(), 0.0)*1E3))
         catch e
             if truncate && isa(e, TimeoutError)
                 warn("Acquisition timeout after $cnt image(s)")
@@ -325,7 +325,6 @@ function read(cam::Camera, ::Type{T}, num::Int;
                 rethrow(e)
             end
         end
-        first = false
     end
 
     # Stop the acquisition.
@@ -339,14 +338,15 @@ function read(cam::Camera, ::Type{T};
               skip::Integer = 0,
               timeout::Real = defaulttimeout(cam, 1 + skip)) where {T}
 
+    # Final time (in seconds).
+    timeout > zero(timeout) || error("invalid timeout")
+    final = time() + convert(Float64, timeout)
+
     # Allocate buffers prepare acquisition.
     _prepareacquisition!(cam, 2, T, 1)
 
     # Set the camera to continuously acquires frames.
     cam[CycleMode] = "Continuous"
-
-    # Timeout (in milliseconds).
-    ms = round(Int, 1_500*(1/cam[FrameRate] + cam[ExposureTime]))
 
     # Start the acquisition.
     send(cam, AcquisitionStart)
@@ -355,7 +355,6 @@ function read(cam::Camera, ::Type{T};
     # Acquire all images (using 1 sec. of additional delay for the first
     # one).
     cnt = 0
-    first = true
     while cnt < 1
         if skip > zero(skip)
             skip -= one(skip)
@@ -363,12 +362,11 @@ function read(cam::Camera, ::Type{T};
             cnt += 1
         end
         try
-            _wait(cam, cnt, (first ? ms + 1_000 : ms))
+            _wait(cam, cnt, round(Cuint, max(final - time(), 0.0)*1E3))
         catch e
             abort(cam)
             rethrow(e)
         end
-        first = false
     end
 
     # Stop the acquisition.
