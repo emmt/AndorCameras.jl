@@ -15,10 +15,10 @@ srcdir = .
 # Macros for compiling with Andor SDK
 AT_DIR = /usr/local
 AT_LIBDIR = $(AT_DIR)/lib
-AT_INCDIR = $(AT_DIR)/include/andor
+AT_INCDIR = $(AT_DIR)/include
 
 AT_DEFS =  -I$(AT_INCDIR)
-AT_DLL = $(AT_LIBDIR)/libatcore.so
+AT_DLL = libatcore.so
 AT_LIBS = -L$(AT_LIBDIR) -latcore
 
 PIC_FLAGS = -fPIC

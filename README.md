@@ -12,8 +12,8 @@ This document describes:
   [`ScientificCameras`](https://github.com/emmt/ScientificCameras.jl)
   interface;
 
-* the [advanced interface](#advanced-interface) which provides access to all Andor
-  cameras *features* and commands;
+* the [advanced interface](#advanced-interface) which provides access to all
+  Andor cameras *features* and commands;
 
 * the [installation](#installation) of the
   [`AndorCameras`](https://github.com/emmt/AndorCameras.jl) package.
@@ -134,7 +134,14 @@ fps, exp = getspeed(cam)
 
 ### Acquire a sequence of images
 
-To acquire a sequence of `n` images (with the current settings):
+To acquire a single image (with the current settings):
+
+```julia
+img = read(cam)
+```
+
+which yield an imafe in the form of a 2D Julia array.  To acquire a sequence of
+`n` images:
 
 ```julia
 imgs = read(cam, n)
@@ -150,6 +157,12 @@ getcapturebitstype(cam)
 ```
 
 You may specify another element type, say `T`, for the acquired images:
+
+```julia
+img = read(cam, T)
+```
+
+or
 
 ```julia
 imgs = read(cam, T, n)
@@ -332,8 +345,9 @@ send(cam, cmd)
 
 ## Installation
 
-`AndorCameras.jl` is not yet an [official Julia package](https://pkg.julialang.org/)
-so you have to clone the repository to install the package:
+`AndorCameras.jl` is not yet an
+[official Julia package](https://pkg.julialang.org/) so you have to clone the
+repository to install the package:
 
 ```julia
 Pkg.clone("https://github.com/emmt/AndorCameras.jl.git")
@@ -366,15 +380,23 @@ make
 assuming `$ANDOR` is the path to the top level directory of the
 `AndorCameras.jl` repository.
 
-If Andor SDK is not installed in `/usr/local`, you can modify the `AT_DIR`,
-`AT_LIBDIR` and `AT_INCDIR` variables in [`deps/Makefile`](./deps/Makefile).
-It is however better to override these variables on the command line and to update the
-code and build the dependencies as follows:
+If Andor SDK is not installed in `/usr/local`, you can modify the `AT_DIR`
+variable in [`deps/Makefile`](./deps/Makefile).  It is however better to
+override these variables on the command line and to update the code and build
+the dependencies as follows:
 
 ```sh
 cd "$ANDOR/deps"
 git pull
-make AT_DIR="$INSTALLDIR"
+make AT_DIR="$INSTALL_DIR"
 ```
 
-where `$INSTALLDIR` is the path where Andor SDK has been installed.
+where `$INSTALL_DIR` is the path where Andor SDK has been installed.  For
+instance:
+
+
+```sh
+cd "$ANDOR/deps"
+git pull
+make AT_DIR="/usr/local/andor"
+```
