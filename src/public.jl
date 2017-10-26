@@ -34,6 +34,8 @@ function stop(cam::Camera)
     return nothing
 end
 
+abort(cam::Camera) = stop(cam)
+
 getfullwidth(cam::Camera) = cam[SensorWidth] :: Int
 
 getfullheight(cam::Camera) = cam[SensorHeight] :: Int
@@ -280,10 +282,65 @@ function getcapturebitstype(cam::Camera)
 end
 
 # Extend method.
-function read(cam::Camera, ::Type{T}, nimgs::Int) where {T}
+function read(cam::Camera, ::Type{T}, num::Int;
+              skip::Integer = 0,
+              timeout::Real = defaulttimeout(cam, num + skip),
+              truncate::Bool = false) where {T}
 
     # Allocate buffers prepare acquisition.
-    _prepareacquisition!(cam, 4, T, nimgs)
+    _prepareacquisition!(cam, 4, T, num)
+
+    # Set the camera to continuously acquires frames.
+    cam[CycleMode] = "Continuous"
+
+    # Timeout (in milliseconds).
+    ms = round(Int, 1_500*(1/cam[FrameRate] + cam[ExposureTime]))
+
+    # Allocate vector of images.
+    imgs = Vector{Array{T,2}}(num)
+
+    # Start the acquisition.
+    send(cam, AcquisitionStart)
+    cam.state = 2
+
+    # Acquire all images (using 1 sec. of additional delay for the first
+    # one).
+    cnt = 0
+    first = true
+    while cnt < num
+        if skip > zero(skip)
+            skip -= one(skip)
+        else
+            cnt += 1
+        end
+        try
+            _wait(cam, cnt, (first ? ms + 1_000 : ms))
+        catch e
+            if truncate && isa(e, TimeoutError)
+                warn("Acquisition timeout after $cnt image(s)")
+                num = cnt
+                resize!(imgs, num)
+            else
+                abort(cam)
+                rethrow(e)
+            end
+        end
+        first = false
+    end
+
+    # Stop the acquisition.
+    send(cam, AcquisitionStop)
+    cam.state = 1
+
+    return cam.imgs
+end
+
+function read(cam::Camera, ::Type{T};
+              skip::Integer = 0,
+              timeout::Real = defaulttimeout(cam, 1 + skip)) where {T}
+
+    # Allocate buffers prepare acquisition.
+    _prepareacquisition!(cam, 2, T, 1)
 
     # Set the camera to continuously acquires frames.
     cam[CycleMode] = "Continuous"
@@ -297,15 +354,28 @@ function read(cam::Camera, ::Type{T}, nimgs::Int) where {T}
 
     # Acquire all images (using 1 sec. of additional delay for the first
     # one).
-    for i in 1:nimgs
-        _wait(cam, i, (i == 1 ? ms + 1_000 : ms))
+    cnt = 0
+    first = true
+    while cnt < 1
+        if skip > zero(skip)
+            skip -= one(skip)
+        else
+            cnt += 1
+        end
+        try
+            _wait(cam, cnt, (first ? ms + 1_000 : ms))
+        catch e
+            abort(cam)
+            rethrow(e)
+        end
+        first = false
     end
 
     # Stop the acquisition.
     send(cam, AcquisitionStop)
     cam.state = 1
 
-    return cam.imgs
+    return cam.imgs[1]
 end
 
 # Extend method.
@@ -327,7 +397,8 @@ end
 # Extend method.
 function wait(cam::Camera, sec::Float64 = 0.0)
     ms = (sec ≥ typemax(Float64) ? AT_INFINITE : round(Cuint, sec*1_000))
-    _wait(cam, 1, ms)
+    ticks = _wait(cam, 1, ms)
+    return cam.imgs[1], ticks
 end
 
 # Extend method.
@@ -359,7 +430,7 @@ function _wait(cam::Camera, index::Int, ms::Integer)
     # Get the timestamp.
     local ticks::Float64
     if cam.clockfrequency > 0
-        tickscnt = unsafe_load(Ptr{UInt64}( ptr + framesize - METADATA_SIZE))
+        tickscnt = unsafe_load(Ptr{UInt64}(ptr + framesize - METADATA_SIZE))
         if ENDIAN_BOM == 0x01020304
             tickscnt = bswap(tickscnt)
         end
@@ -372,12 +443,14 @@ function _wait(cam::Camera, index::Int, ms::Integer)
     for i in 1:length(cam.bufs)
         if pointer(cam.bufs[i]) == ptr
             # Extract buffer data and requeue buffer.
-            img = cam.imgs[index]
-            buf = cam.bufs[i]
-            if cam.mono12packed
-                extractmono12packed!(img, buf, cam.bytesperline)
-            else
-                extract!(img, buf, cam.bytesperline)
+            if 1 ≤ index ≤ length(cam.imgs)
+                img = cam.imgs[index]
+                buf = cam.bufs[i]
+                if cam.mono12packed
+                    extractmono12packed!(img, buf, cam.bytesperline)
+                else
+                    extract!(img, buf, cam.bytesperline)
+                end
             end
             code = ccall((:AT_QueueBuffer, _DLL), Cint,
                          (Cint, Ptr{UInt8}, Cint),
@@ -389,7 +462,7 @@ function _wait(cam::Camera, index::Int, ms::Integer)
                 cam.state = 1
                 throw(AndorError(:AT_QueueBuffer, code))
             end
-            return img, ticks
+            return ticks
         end
     end
     error("bad buffer address")
@@ -426,7 +499,7 @@ function _prepareacquisition!(cam::Camera,
     framesize = cam[ImageSizeBytes]
 
     # Create queue of frame buffers.
-    if length(cam.bufs) != nbufs
+    if length(cam.bufs) != nbufs # FIXME: resize!
         cam.bufs = Array{Vector{UInt8}}(nbufs)
     end
     for i in 1:nbufs
@@ -450,7 +523,6 @@ function _prepareacquisition!(cam::Camera,
                  height)
     cam.imgs = [Array{T,2}(width, height) for i in 1:nimgs]
     cam.ticks = zeros(UInt64, nimgs)
-    cam.bytesperline = stride
     cam.mono12packed = (repr(cam, PixelEncoding) == "Mono12Packed") # FIXME:
     if isimplemented(cam, AOIStride)
         cam.bytesperline = cam[AOIStride]
