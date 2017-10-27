@@ -256,16 +256,10 @@ sensorheight = cam[SensorHeight]
 
 yields the full dimensions of the sensor of camera `cam`.
 
-The names of the constants defining the existing features closely follow
-the *Andor Software Development Kit* documentation.  This documentation
-should be consulted to figure out the supported features and their meaning.
-
-
-A string representation of feature `key` is obtained by:
-
-```julia
-repr(key)
-```
+The names of the constants defining the existing features closely follow the
+*Andor Software Development Kit* documentation.  This documentation should be
+consulted to figure out the supported features and their meaning.  If specific
+features are missing, it is easy to [define new ones](define-new-features).
 
 Julia `AndorCameras` module takes care of the different kind of features
 depending on the type of their values: integer, floating-point, string,
@@ -293,7 +287,16 @@ maximum(cam, key)
 ```
 
 
-### Enumerated features
+#### String representation
+
+A string representation of feature `key` is obtained by:
+
+```julia
+repr(key)
+```
+
+
+#### Enumerated features
 
 An enumerated feature can only have a limited number of predefined values.
 These values can be set by an integer index or by their name.  Assuming
@@ -347,7 +350,7 @@ isimplemented(cam, key, idx)
 ```
 
 
-### Commands
+#### Commands
 
 Command features (*e.g.* `AcquisitionStart`) are used to identify a specific
 command to send to the camera.  These features have no values.  To send the
@@ -355,6 +358,34 @@ commmand `cmd` to the camera `cam`, you just have to:
 
 ```julia
 send(cam, cmd)
+```
+
+
+#### Define new features
+
+If specific features are not predefined by the `AndorCameras` package, you may
+define them at run-time provided their name and type is known.  For instance:
+
+```julia
+boolkey = AndorCameras.BooleanFeature("SomeBooleanFeature")
+intkey = AndorCameras.IntegerFeature("SomeIntegerFeature")
+enumkey = AndorCameras.EnumeratedFeature("SomeEnumeratedFeature")
+fltkey = AndorCameras.FloatingPointFeature("SomeFloatingPointFeature")
+strkey = AndorCameras.StringFeature("SomeStringFeature")
+```
+
+would define 5 features of 5 different types given their names.  These features
+can be used as any others.  For instance:
+
+```julia
+cam[boolkey] = false
+```
+
+If performance and readability are not an issue, a feature may be defined on
+the fly.  For instance:
+
+```julia
+cam[AndorCameras.BooleanFeature("SomeBooleanFeature")] = false
 ```
 
 
