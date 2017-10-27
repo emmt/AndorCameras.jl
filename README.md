@@ -3,7 +3,10 @@
 This Julia package implements an
 [interface](https://github.com/emmt/ScientificCameras.jl) to some
 [Andor cameras](http://www.andor.com/scientific-cameras) via the Andor Software
-Development Kit (SDK).
+Development Kit (SDK).  As of version 3.13 of the SDK, the *Neo*, *Zyla*,
+*Apogee* and *iStar-SCMOS* Andor cameras should be supported.  The
+`AndorCameras` package has been tested on under Linux on the *Zyla* (USB-3
+connected) camera, I am interested in feedback about other models.
 
 This document describes:
 
@@ -213,8 +216,8 @@ provided Julia interface.
 
 ### Constants
 
-The constants defined in `atcore.h` are available, for instance
-`AndorCameras.AT_SUCCESS`.  All constants are preficed with `AT_` and may be
+The constants defined in `atcore.h` are available in Julia, for instance
+`AndorCameras.AT_SUCCESS`.  All constants are prefixed with `AT_` and may be
 imported by:
 
 ```julia
@@ -235,17 +238,29 @@ cam[key]
 cam[key] = val
 ```
 
-where `cam` is the camera instance, `key` is the considered feature and
-`val` its value.  Here `key` can be `AndorCameras.PixelEncoding` or just
-`PixelEncoding` if you have imported all defined features by:
+where `cam` is the camera instance, `key` is the considered feature and `val`
+its value.  Here `key` can be something like `AndorCameras.SensorWidth` or
+just `SensorWidth` if you have imported all defined features by:
 
 ```julia
 using AndorCameras.Features
 ```
 
+For instance:
+
+```julia
+using AndorCameras.Features
+sensorwidth = cam[SensorWidth]
+sensorheight = cam[SensorHeight]
+```
+
+yields the full dimensions of the sensor of camera `cam`.
+
 The names of the constants defining the existing features closely follow
 the *Andor Software Development Kit* documentation.  This documentation
 should be consulted to figure out the supported features and their meaning.
+
+
 A string representation of feature `key` is obtained by:
 
 ```julia
