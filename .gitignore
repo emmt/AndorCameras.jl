@@ -12,6 +12,7 @@
 lib*.a
 
 # Work or temporary directories:
+drivers/
 work/
 temp/
 tmp/
