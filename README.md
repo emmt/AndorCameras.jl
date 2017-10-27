@@ -259,7 +259,7 @@ yields the full dimensions of the sensor of camera `cam`.
 The names of the constants defining the existing features closely follow the
 *Andor Software Development Kit* documentation.  This documentation should be
 consulted to figure out the supported features and their meaning.  If specific
-features are missing, it is easy to [define new ones](define-new-features).
+features are missing, it is easy to [define new ones](#define-new-features).
 
 Julia `AndorCameras` module takes care of the different kind of features
 depending on the type of their values: integer, floating-point, string,
@@ -328,7 +328,7 @@ minimum(cam, key)
 maximum(cam, key)
 ```
 
-the former always yields `1`.
+the former always yields `1` for an enumerated feature.
 
 To retrieve the string representation of the value an enumerated feature, do
 one of:
@@ -338,8 +338,8 @@ repr(cam, key)
 repr(cam, key, idx)
 ```
 
-which respectively yield the current value of the enumerated feature and the
-value at a given index.
+which respectively yield the string representation of the current value of the
+enumerated feature and of the value at a given index.
 
 To query whether a given index is available or implemented for an enumerated
 feature, call respectively:
@@ -412,7 +412,8 @@ Pkg.update("AndorCameras")
 Pkg.build("AndorCameras")
 ```
 
-to pull the latest version.
+to use the latest version.  It may be a good idea to also pull the last version
+of `ScientificCameras`](https://github.com/emmt/ScientificCameras.jl).
 
 If you have `AndorCameras.jl` repository not managed at all by Julia's package
 manager, updating is a matter of:
