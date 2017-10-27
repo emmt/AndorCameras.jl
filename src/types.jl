@@ -75,3 +75,8 @@ struct StringFeature <: AbstractFeature
     name::Vector{WideChar}
     StringFeature(sym::Symbol) = new(widestring(sym))
 end
+
+struct BooleanOrEnumeratedFeature <: AbstractFeature
+    name::Vector{WideChar}
+    BooleanOrEnumeratedFeature(sym::Symbol) = new(widestring(sym))
+end

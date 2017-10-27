@@ -13,6 +13,7 @@
 getnumberofdevices() = Int(_devicecount[])
 
 const _devicecount = Ref{Int64}()
+
 function __init__()
     code = ccall((:AT_InitialiseLibrary, _DLL), Cint, ())
     code == AT_SUCCESS || throw(AndorError(:AT_InitialiseLibrary, code))
