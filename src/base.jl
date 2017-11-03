@@ -42,7 +42,7 @@ function checkstate(cam::Camera, state::Integer, throwerrors::Bool = false)
         local msg::String
         if state == 1 && cam.state == 0
             msg = "camera not open"
-        elseif (state == 0 || state == 1) && cam.state == 2
+        elseif state == 1 && cam.state == 2
             msg = "acquisition is running"
         elseif state == 2 && (cam.state == 0 || cam.state == 1)
             msg = "acquisition not started"
@@ -62,7 +62,7 @@ end
 
 function _close(cam::Camera, throwerrors::Bool = false)
     if cam.state > 1
-        # Stop acquisition.
+        # Stop acquisition, then flush buffers.
         _stop(cam, throwerrors)
         _flush(cam, throwerrors)
         cam.state = 1
@@ -96,9 +96,10 @@ _stop(cam::Camera, throwerrors::Bool = false) =
     _flush(cam, throwerrors=false) -> code
 
 flushes out any remaining buffers that have been queued using the
-`_queuebuffer` function.  If this function is not called after an
-acquisition is complete then the remaining buffers will be used the next
-time an acquisition is started.
+`_queuebuffer` function.  If this function is not called after an acquisition
+is complete then the remaining buffers will be used the next time an
+acquisition is started.  This function should always be called after the
+"AcquisitionStop" command has been sent.
 
 """
 function _flush(cam::Camera, throwerrors::Bool = false)
