@@ -36,14 +36,6 @@ mutable struct Camera <: ScientificCamera
                    0, 0, false, -1)
 end
 
-#mutable struct _Once
-#    function _One()
-#        obj = new()
-#        finalizer(obj, ccall((:AT_FinaliseLibrary, _DLL), Cint, ()))
-#        return obj
-#    end
-#end
-
 abstract type AbstractFeature end
 
 struct CommandFeature <: AbstractFeature
