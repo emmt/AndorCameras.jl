@@ -166,7 +166,7 @@ const _ENCODINGS = Dict(
 function supportedpixelformats(cam::Camera)
     U = Union{}
     for i in 1:maximum(cam, PixelEncoding)
-        if isavailable(cam, PixelEncoding, i)
+        if isimplemented(cam, PixelEncoding, i)
             str = repr(cam, PixelEncoding, i)
             U = Union{U, _ENCODINGS[str]}
         end
