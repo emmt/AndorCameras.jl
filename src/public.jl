@@ -174,14 +174,12 @@ function supportedpixelformats(cam::Camera)
     return U
 end
 
-function getpixelformat(cam::Camera)
-    T = _ENCODINGS[repr(cam, PixelEncoding)]
-    return (T, T)
-end
+getpixelformat(cam::Camera) =
+    _ENCODINGS[repr(cam, PixelEncoding)]
 
 function setpixelformat!(cam::Camera, ::Type{T}) where {T <: PixelFormat}
     checkstate(cam, 1, true)
-    if T == getpixelformat(cam)[1]
+    if T == getpixelformat(cam)
         return T
     elseif T == Monochrome{8}
         try
@@ -224,16 +222,6 @@ function setpixelformat!(cam::Camera, ::Type{T}) where {T <: PixelFormat}
     end
     error("unsupported pixel encoding")
 end
-
-setpixelformat!(cam::Camera, ::Type{T}, ::Type{T}) where {T <: PixelFormat} =
-    setpixelformat!(cam, T)
-
-function setpixelformat!(cam::Camera,
-                         ::Type{C},
-                         ::Type{B}) where {C <: PixelFormat, B <: PixelFormat}
-    error("captured images must have the same pixel format as the camera")
-end
-
 
 getspeed(cam::Camera) =
     (cam[FrameRate], cam[ExposureTime])
