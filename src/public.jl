@@ -273,7 +273,8 @@ end
 function read(cam::Camera, ::Type{T}, num::Int;
               skip::Integer = 0,
               timeout::Real = defaulttimeout(cam, num + skip),
-              truncate::Bool = false) where {T}
+              truncate::Bool = false,
+              quiet::Bool = false) where {T}
 
     # Final time (in seconds).
     timeout > zero(timeout) || error("invalid timeout")
@@ -292,8 +293,7 @@ function read(cam::Camera, ::Type{T}, num::Int;
     send(cam, AcquisitionStart)
     cam.state = 2
 
-    # Acquire all images (using 1 sec. of additional delay for the first
-    # one).
+    # Acquire all images.
     cnt = 0
     while cnt < num
         if skip > zero(skip)
@@ -303,22 +303,20 @@ function read(cam::Camera, ::Type{T}, num::Int;
         end
         try
             _wait(cam, cnt, round(Cuint, max(final - time(), 0.0)*1E3))
-        catch e
-            if truncate && isa(e, TimeoutError)
-                warn("Acquisition timeout after $cnt image(s)")
+        catch err
+            if truncate && isa(err, TimeoutError)
+                quiet || warn("Acquisition timeout after $cnt image(s)")
                 num = cnt
                 resize!(imgs, num)
             else
                 abort(cam)
-                rethrow(e)
+                rethrow(err)
             end
         end
     end
 
-    # Stop the acquisition.
-    send(cam, AcquisitionStop)
-    cam.state = 1
-
+    # Stop the acquisition and return the sequence of images.
+    abort(cam)
     return cam.imgs
 end
 
@@ -340,27 +338,23 @@ function read(cam::Camera, ::Type{T};
     send(cam, AcquisitionStart)
     cam.state = 2
 
-    # Acquire all images (using 1 sec. of additional delay for the first
-    # one).
-    cnt = 0
-    while cnt < 1
+    # Acquire all images.
+    while true
+        try
+            _wait(cam, 1, round(Cuint, max(final - time(), 0.0)*1E3))
+        catch err
+            abort(cam)
+            rethrow(err)
+        end
         if skip > zero(skip)
             skip -= one(skip)
         else
-            cnt += 1
-        end
-        try
-            _wait(cam, cnt, round(Cuint, max(final - time(), 0.0)*1E3))
-        catch e
-            abort(cam)
-            rethrow(e)
+            break
         end
     end
 
-    # Stop the acquisition.
-    send(cam, AcquisitionStop)
-    cam.state = 1
-
+    # Stop the acquisition and return the image.
+    abort(cam)
     return cam.imgs[1]
 end
 

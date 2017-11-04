@@ -1,6 +1,6 @@
 # A Julia interface to Andor cameras
 
-This Julia package implements an
+This [Julia](http://julialang.org/) package implements an
 [interface](https://github.com/emmt/ScientificCameras.jl) to some
 [Andor cameras](http://www.andor.com/scientific-cameras) via the Andor Software
 Development Kit (SDK).  As of version 3.13 of the SDK, the *Neo*, *Zyla*,
@@ -52,9 +52,8 @@ To open an Andor camera:
 cam = open(AndorCameras.Camera, dev)
 ```
 
-with `dev` the device number (`0` is a simulated camera `SimCam` and `1`
-correspond to the `System`).  To figure out how many Andor devices are
-available:
+with `dev` the device number (`0` is the first device).  To figure out how many
+Andor devices are available:
 
 ```julia
 AndorCameras.getnumberofdevices()
@@ -81,8 +80,8 @@ setroi!(cam, [[xsub, ysub,] xoff, yoff,] width, height)
 ```
 
 where `xsub` and `ysub` are the dimensions of the macro-pixels (in pixels and
-both assumed to be `1` if not specified), `xoff` and `yoff` are the offsets (in
-pixels) of the ROI relative to the sensor (both assumed to be `0` if not
+both assumed to be `1` if not specified), `xoff` and `yoff` are the offsets of
+the ROI relative to the sensor (in pixels and both assumed to be `0` if not
 specified), `width` and `height` are the dimensions of the ROI (in
 macro-pixels).
 
@@ -143,7 +142,7 @@ To acquire a single image (with the current settings):
 img = read(cam)
 ```
 
-which yield an imafe in the form of a 2D Julia array.  To acquire a sequence of
+which yield an image in the form of a 2D Julia array.  To acquire a sequence of
 `n` images:
 
 ```julia
@@ -172,6 +171,23 @@ imgs = read(cam, T, n)
 ```
 
 but there may be restrictions.
+
+The `read` methods have the following keywords:
+
+* Use keyword `skip` to specify a number of images to skip.
+
+* Use keyword `timeout` to specify the maximum amount of time (in seconds) to
+  wait for acquisition to complete.  If acquisition takes longer than this
+  time, a `ScientificCameras.TimeoutError` is thrown unless keyword `truncate`
+  is `true` (see below).  The default timeout is computed from the acquisition
+  rate and the total number of images.
+
+* When reading a sequence of images, keyword `truncate` may be set `true` to
+  print a warning and return a truncated sequence instead of throwing an
+  exception in case of timeout.
+
+* Keyword `quiet` can be set `true` to suppress the printing of warning
+  messages (see above).
 
 
 ### Continuous acquisition of images
