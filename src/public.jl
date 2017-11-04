@@ -372,7 +372,7 @@ function start(cam::Camera, ::Type{T}, nbufs::Int) where {T}
     send(cam, AcquisitionStart)
     cam.state = 2
 
-    return bufs
+    return nothing
 end
 
 # Extend method.
