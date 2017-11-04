@@ -377,7 +377,7 @@ end
 
 # Extend method.
 function wait(cam::Camera, sec::Float64 = 0.0)
-    ms = (sec ≥ typemax(Float64) ? AT_INFINITE : round(Cuint, sec*1_000))
+    ms = (sec ≥ typemax(Cint) ? AT_INFINITE : round(Cint, sec*1_000))
     ticks = _wait(cam, 1, ms)
     return cam.imgs[1], ticks
 end
@@ -392,11 +392,14 @@ function _wait(cam::Camera, index::Int, ms::Integer)
     # Check arguments.
     checkstate(cam, 2, true)
 
-    # Sleep in this thread until data is ready.
+    # Sleep in this thread until data is ready.  Note that the timeout argument
+    # is pretended to be `Cint` because `AT_INFINITE` is `-1` whereas it is
+    # `Cuint`.  This limits the maximum allowed timeout to about 24.9 days
+    # which should be sufficient!
     refptr = Ref{Ptr{UInt8}}()
     refsiz = Ref{Cint}()
     code = ccall((:AT_WaitBuffer, _DLL), Cint,
-                 (Handle, Ptr{Ptr{UInt8}}, Ptr{Cint}, Cuint),
+                 (Handle, Ptr{Ptr{UInt8}}, Ptr{Cint}, Cint),
                  cam.handle, refptr, refsiz, ms)
     if code != AT_SUCCESS
         if code == AT_ERR_TIMEDOUT
