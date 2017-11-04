@@ -265,7 +265,7 @@ const METADATA_SIZE = (LENGTH_FIELD_SIZE + CID_FIELD_SIZE
 
 # Extend method.
 function getcapturebitstype(cam::Camera)
-    T = equivalentbitstype(getpixelformat(cam)[1])
+    T = equivalentbitstype(getpixelformat(cam))
     return (T == Void ? UInt8 : T)
 end
 
@@ -283,21 +283,15 @@ function read(cam::Camera, ::Type{T}, num::Int;
     # Allocate vector of images.
     imgs = Vector{Array{T,2}}(num)
 
-    # Allocate buffers prepare acquisition.
-    _prepareacquisition!(cam, 4, T, 1)
-
-    # Set the camera to continuously acquires frames.
-    cam[CycleMode] = "Continuous"
-
     # Start the acquisition.
-    send(cam, AcquisitionStart)
-    cam.state = 2
+    start(cam, T, 4)
 
     # Acquire all images.
     cnt = 0
     while cnt < num
         try
-            _wait(cam, 1, round(Cuint, max(final - time(), 0.0)*1E3))
+            _wait(cam, round(Cint, max(final - time(), 0.0)*1E3),
+                  skip > zero(skip))
         catch err
             if truncate && isa(err, TimeoutError)
                 quiet || warn("Acquisition timeout after $cnt image(s)")
@@ -312,7 +306,7 @@ function read(cam::Camera, ::Type{T}, num::Int;
             skip -= one(skip)
         else
             cnt += 1
-            imgs[cnt] = copy(cam.imgs[1])
+            imgs[cnt] = copy(cam.lastimg)
         end
     end
 
@@ -329,20 +323,14 @@ function read(cam::Camera, ::Type{T};
     timeout > zero(timeout) || error("invalid timeout")
     final = time() + convert(Float64, timeout)
 
-    # Allocate buffers prepare acquisition.
-    _prepareacquisition!(cam, 2, T, 1)
-
-    # Set the camera to continuously acquires frames.
-    cam[CycleMode] = "Continuous"
-
     # Start the acquisition.
-    send(cam, AcquisitionStart)
-    cam.state = 2
+    start(cam, T, 2)
 
     # Acquire all images.
     while true
         try
-            _wait(cam, 1, round(Cuint, max(final - time(), 0.0)*1E3))
+            _wait(cam, round(Cint, max(final - time(), 0.0)*1E3),
+                  skip > zero(skip))
         catch err
             abort(cam)
             rethrow(err)
@@ -356,14 +344,69 @@ function read(cam::Camera, ::Type{T};
 
     # Stop the acquisition and return the image.
     abort(cam)
-    return cam.imgs[1]
+    return cam.lastimg
 end
 
 # Extend method.
 function start(cam::Camera, ::Type{T}, nbufs::Int) where {T}
 
-    # Allocate buffers prepare acquisition.
-    _prepareacquisition!(cam, nbufs, T, 1)
+    # Check arguments.
+    checkstate(cam, 1, true)
+    if nbufs < 1
+        error("bad number of frame buffers")
+    end
+
+    # Make sure no buffers are currently in use.
+    _flush(cam, true)
+
+    # Turn on metadata (this must be done before getting the frame size).
+    if (isimplemented(cam, MetadataEnable) &&
+        isimplemented(cam, MetadataTimestamp) &&
+        isimplemented(cam, TimestampClockFrequency))
+        cam[MetadataEnable] = true
+        cam[MetadataTimestamp] = true
+        cam.clockfrequency = cam[TimestampClockFrequency]
+    else
+        cam.clockfrequency = 0
+    end
+
+    # Get size of buffers.
+    framesize = cam[ImageSizeBytes]
+
+    # Create queue of frame buffers.
+    if length(cam.bufs) != nbufs
+        resize!(cam.bufs, nbufs)
+    end
+    for i in 1:nbufs
+        if ! isassigned(cam.bufs, i) || sizeof(cam.bufs[i]) != framesize
+            cam.bufs[i] = Vector{UInt8}(framesize)
+        end
+        code = ccall((:AT_QueueBuffer, _DLL), Cint, (Cint, Ptr{UInt8}, Cint),
+                     cam.handle, cam.bufs[i], framesize)
+        if code != AT_SUCCESS
+            _flush(cam, false)
+            throw(AndorError(:AT_QueueBuffer, code))
+        end
+    end
+
+    # Allocate array to store last image.
+    width = (isimplemented(cam, AOIWidth) ? cam[AOIWidth]
+             : cam[SensorWidth])
+    height = (isimplemented(cam, AOIHeight) ? cam[AOIHeight]
+              : cam[SensorHeight])
+    stride = div(framesize - (cam.clockfrequency > 0 ? METADATA_SIZE : 0),
+                 height)
+    cam.lastimg = Array{T,2}(width, height)
+    cam.mono12packed = (repr(cam, PixelEncoding) == "Mono12Packed") # FIXME:
+    if isimplemented(cam, AOIStride)
+        cam.bytesperline = cam[AOIStride]
+        if cam.bytesperline != stride
+            warn("computed stride ($(stride) bytes) is not equal to ",
+                 "AOIStride ($(cam.bytesperline) bytes)")
+        end
+    else
+        cam.bytesperline = stride
+    end
 
     # Set the camera to continuously acquires frames.
     cam[CycleMode] = "Continuous"
@@ -378,8 +421,8 @@ end
 # Extend method.
 function wait(cam::Camera, sec::Float64 = 0.0)
     ms = (sec ≥ typemax(Cint) ? AT_INFINITE : round(Cint, sec*1_000))
-    ticks = _wait(cam, 1, ms)
-    return cam.imgs[1], ticks
+    ticks = _wait(cam, ms, false)
+    return cam.lastimg, ticks
 end
 
 # Extend method.
@@ -388,7 +431,7 @@ function release(cam::Camera)
     return nothing
 end
 
-function _wait(cam::Camera, index::Int, ms::Integer)
+function _wait(cam::Camera, ms::Integer, skip::Bool)
     # Check arguments.
     checkstate(cam, 2, true)
 
@@ -427,13 +470,12 @@ function _wait(cam::Camera, index::Int, ms::Integer)
     for i in 1:length(cam.bufs)
         if pointer(cam.bufs[i]) == ptr
             # Extract buffer data and requeue buffer.
-            if 1 ≤ index ≤ length(cam.imgs)
-                img = cam.imgs[index]
+            if ! skip
                 buf = cam.bufs[i]
                 if cam.mono12packed
-                    extractmono12packed!(img, buf, cam.bytesperline)
+                    extractmono12packed!(cam.lastimg, buf, cam.bytesperline)
                 else
-                    extract!(img, buf, cam.bytesperline)
+                    extract!(cam.lastimg, buf, cam.bytesperline)
                 end
             end
             code = ccall((:AT_QueueBuffer, _DLL), Cint,
@@ -450,73 +492,4 @@ function _wait(cam::Camera, index::Int, ms::Integer)
         end
     end
     error("bad buffer address")
-end
-
-function _prepareacquisition!(cam::Camera,
-                              nbufs::Int,
-                              ::Type{T},
-                              nimgs::Int) where {T}
-    # Check arguments.
-    checkstate(cam, 1, true)
-    if nbufs < 1
-        error("bad number of frame buffers")
-    end
-    if nimgs < 1
-        error("bad number of images")
-    end
-
-    # Make sure no buffers are currently in use.
-    _flush(cam, true)
-
-    # Turn on metadata (this must be done before getting the frame size).
-    if (isimplemented(cam, MetadataEnable) &&
-        isimplemented(cam, MetadataTimestamp) &&
-        isimplemented(cam, TimestampClockFrequency))
-        cam[MetadataEnable] = true
-        cam[MetadataTimestamp] = true
-        cam.clockfrequency = cam[TimestampClockFrequency]
-    else
-        cam.clockfrequency = 0
-    end
-
-    # Get size of buffers.
-    framesize = cam[ImageSizeBytes]
-
-    # Create queue of frame buffers.
-    if length(cam.bufs) != nbufs # FIXME: resize!
-        cam.bufs = Array{Vector{UInt8}}(nbufs)
-    end
-    for i in 1:nbufs
-        if ! isassigned(cam.bufs, i) || sizeof(cam.bufs[i]) != framesize
-            cam.bufs[i] = Vector{UInt8}(framesize)
-        end
-        code = ccall((:AT_QueueBuffer, _DLL), Cint, (Cint, Ptr{UInt8}, Cint),
-                     cam.handle, cam.bufs[i], framesize)
-        if code != AT_SUCCESS
-            _flush(cam, false)
-            throw(AndorError(:AT_QueueBuffer, code))
-        end
-    end
-
-    # Create images.
-    width = (isimplemented(cam, AOIWidth) ? cam[AOIWidth]
-             : cam[SensorWidth])
-    height = (isimplemented(cam, AOIHeight) ? cam[AOIHeight]
-              : cam[SensorHeight])
-    stride = div(framesize - (cam.clockfrequency > 0 ? METADATA_SIZE : 0),
-                 height)
-    cam.imgs = [Array{T,2}(width, height) for i in 1:nimgs]
-    cam.ticks = zeros(UInt64, nimgs)
-    cam.mono12packed = (repr(cam, PixelEncoding) == "Mono12Packed") # FIXME:
-    if isimplemented(cam, AOIStride)
-        cam.bytesperline = cam[AOIStride]
-        if cam.bytesperline != stride
-            warn("computed stride ($(stride) bytes) is not equal to ",
-                 "AOIStride ($(cam.bytesperline) bytes)")
-        end
-    else
-        cam.bytesperline = stride
-    end
-
-    return nothing
 end

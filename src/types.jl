@@ -23,16 +23,14 @@ const Handle = Cint
 mutable struct Camera <: ScientificCamera
     state::Int
     bufs::Vector{Vector{UInt8}}        # buffers for the frame grabber
-    imgs::Vector{Array{T,2}} where {T} # images
-    ticks::Vector{Float64}             # timestamps of images
+    lastimg::Array{T,2} where {T}      # last image
     bytesperline::Int
     clockfrequency::Int
     mono12packed::Bool
     handle::Handle
     Camera() = new(0,
                    Vector{Vector{UInt8}}(0),
-                   Vector{Array{UInt8,2}}(0),
-                   Vector{Float64}(0),
+                   Array{UInt8,2}(0,0),
                    0, 0, false, -1)
 end
 
