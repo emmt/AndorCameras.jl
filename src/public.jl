@@ -280,14 +280,14 @@ function read(cam::Camera, ::Type{T}, num::Int;
     timeout > zero(timeout) || error("invalid timeout")
     final = time() + convert(Float64, timeout)
 
+    # Allocate vector of images.
+    imgs = Vector{Array{T,2}}(num)
+
     # Allocate buffers prepare acquisition.
-    _prepareacquisition!(cam, 4, T, num)
+    _prepareacquisition!(cam, 4, T, 1)
 
     # Set the camera to continuously acquires frames.
     cam[CycleMode] = "Continuous"
-
-    # Allocate vector of images.
-    imgs = Vector{Array{T,2}}(num)
 
     # Start the acquisition.
     send(cam, AcquisitionStart)
@@ -296,13 +296,8 @@ function read(cam::Camera, ::Type{T}, num::Int;
     # Acquire all images.
     cnt = 0
     while cnt < num
-        if skip > zero(skip)
-            skip -= one(skip)
-        else
-            cnt += 1
-        end
         try
-            _wait(cam, cnt, round(Cuint, max(final - time(), 0.0)*1E3))
+            _wait(cam, 1, round(Cuint, max(final - time(), 0.0)*1E3))
         catch err
             if truncate && isa(err, TimeoutError)
                 quiet || warn("Acquisition timeout after $cnt image(s)")
@@ -313,11 +308,17 @@ function read(cam::Camera, ::Type{T}, num::Int;
                 rethrow(err)
             end
         end
+        if skip > zero(skip)
+            skip -= one(skip)
+        else
+            cnt += 1
+            imgs[cnt] = copy(cam.imgs[1])
+        end
     end
 
     # Stop the acquisition and return the sequence of images.
     abort(cam)
-    return cam.imgs
+    return imgs
 end
 
 function read(cam::Camera, ::Type{T};
