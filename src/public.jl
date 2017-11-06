@@ -231,7 +231,7 @@ function setspeed!(cam::Camera, fps::Float64, exp::Float64)
         cam[FrameRate] = fps
     end
     if cam[ExposureTime] != exp
-        cam[ExposureTime] != exp
+        cam[ExposureTime] = exp
     end
     if cam[FrameRate] < fps
         cam[FrameRate] = fps
