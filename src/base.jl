@@ -383,6 +383,61 @@ Base.repr(key::AbstractFeature) = widestringtostring(key.name)
 Base.show(io::IO, key::T) where {T <: AbstractFeature} =
     print(io, T, "(", widestringtostring(key.name), ")")
 
+function Base.show(io::IO, cam::T) where {T <: Camera}
+    print(io, T, ":")
+    count = typemax(Int)
+    function prt(args...)
+        local pfx::String
+        if count < 3
+            count += 1
+            pfx = " "
+        else
+            count = 1
+            pfx = "\n    "
+        end
+        print(io, pfx, args...)
+    end
+    if isimplemented(cam, CameraFamily)
+        prt("family: \"", cam[CameraFamily], "\",")
+    end
+    if isimplemented(cam, CameraModel)
+        prt("model: \"", cam[CameraModel], "\",")
+    end
+    if isimplemented(cam, CameraName)
+        prt("name: \"", cam[CameraName], "\",")
+    end
+    if isimplemented(cam, CameraPresent)
+        prt("present: ", cam[CameraPresent], ",")
+    end
+    if isimplemented(cam, SensorTemperature)
+        prt("temperature: ", @sprintf("%.1f°C,", cam[SensorTemperature]))
+    end
+    if isimplemented(cam, CycleMode)
+        prt("cycle mode: \"", repr(cam, CycleMode), "\",")
+    end
+    if isimplemented(cam, CameraAcquiring)
+        prt("acquiring: ", cam[CameraAcquiring], ",")
+    end
+    if isimplemented(cam, PixelEncoding)
+        prt("pixel encoding: \"", repr(cam, PixelEncoding), "\",")
+    end
+    if isimplemented(cam, BytesPerPixel)
+        prt("bits per pixel: ", round(Int, 8*cam[BytesPerPixel]), ",")
+    end
+    if isimplemented(cam, SensorWidth) && isimplemented(cam, SensorHeight)
+        prt("sensor size: ", cam[SensorWidth], "×", cam[SensorHeight], ",")
+    end
+    if isimplemented(cam, FrameRate)
+        prt("frames per second: ", @sprintf("%g", cam[FrameRate]), ",")
+    end
+    if isimplemented(cam, ExposureTime)
+        prt("exposure time: ", @sprintf("%g", cam[ExposureTime]), " s,")
+    end
+    roi = getroi(cam)
+    prt("macro-pixel: ", roi.xsub, "×", roi.ysub, ",")
+    prt("ROI offsets: (", roi.xoff, ",", roi.yoff, "),")
+    prt("image size: ", roi.width, "×", roi.height, "\n")
+end
 
 # Extract images from buffers.
 
