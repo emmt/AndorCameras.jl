@@ -467,11 +467,10 @@ function _wait(cam::Camera, ms::Integer, skip::Bool)
     end
 
     # Find buffer index.
-    for i in 1:length(cam.bufs)
-        if pointer(cam.bufs[i]) == ptr
+    for buf in cam.bufs
+        if pointer(buf) == ptr
             # Extract buffer data and requeue buffer.
             if ! skip
-                buf = cam.bufs[i]
                 if cam.mono12packed
                     extractmono12packed!(cam.lastimg, buf, cam.bytesperline)
                 else
