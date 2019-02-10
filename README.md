@@ -412,18 +412,20 @@ cam[AndorCameras.BooleanFeature("SomeBooleanFeature")] = false
 repository to install the package:
 
 ```julia
+using Pkg
 Pkg.clone("https://github.com/emmt/AndorCameras.jl.git")
 Pkg.build("AndorCameras")
 ```
 
-The build process assumes that
-[Andor Software Development Kit (SDK)](http://www.andor.com/scientific-software/software-development-kit)
-has been installed in the usual directory `/usr/local` (read the end of this
+The build process assumes that [Andor Software Development Kit
+(SDK)](http://www.andor.com/scientific-software/software-development-kit) has
+been installed in the usual directory `/usr/local/andor` (read the end of this
 section if you have installed the SDK elsewhere).
 
 Later, it is sufficient to do:
 
 ```julia
+using Pkg
 Pkg.update("AndorCameras")
 Pkg.build("AndorCameras")
 ```
@@ -443,10 +445,10 @@ make
 assuming `$ANDOR` is the path to the top level directory of the
 `AndorCameras.jl` repository.
 
-If Andor SDK is not installed in `/usr/local`, you can modify the `AT_DIR`
-variable in [`deps/Makefile`](./deps/Makefile).  It is however better to
-override these variables on the command line and to update the code and build
-the dependencies as follows:
+If Andor SDK is not installed in `/usr/local/andor`, you can modify the
+`AT_DIR` variable in [`deps/Makefile`](./deps/Makefile).  It is however better
+to override these variables on the command line and to update the code and
+build the dependencies as follows:
 
 ```sh
 cd "$ANDOR/deps"
@@ -457,9 +459,10 @@ make AT_DIR="$INSTALL_DIR"
 where `$INSTALL_DIR` is the path where Andor SDK has been installed.  For
 instance:
 
-
 ```sh
 cd "$ANDOR/deps"
 git pull
 make AT_DIR="/usr/local/andor"
 ```
+
+is what is assumed by default.
