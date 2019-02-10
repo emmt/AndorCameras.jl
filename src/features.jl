@@ -7,9 +7,17 @@
 #
 # This file is part of "AndorCameras.jl" released under the MIT license.
 #
-# Copyright (C) 2017, Éric Thiébaut.
+# Copyright (C) 2017-2019, Éric Thiébaut.
 #
 
+"""
+```julia
+using AndorCameras.Features
+```
+
+makes all Andor cameras feature definitions available.
+
+"""
 module Features
 
 import
@@ -49,7 +57,7 @@ for (sym, T) in ((:AccumulateCount, IntegerFeature),
                  (:AuxiliaryOutSourceTwo, EnumeratedFeature),
                  (:BackoffTemperatureOffset, FloatingPointFeature),
                  (:Baseline, IntegerFeature),
-                 (:BaselineLevel, IntegerFeature), # FIXME: deprcated?
+                 (:BaselineLevel, IntegerFeature), # FIXME: deprecated?
                  (:BitDepth, EnumeratedFeature),
                  (:BufferOverflowEvent, IntegerFeature),
                  (:BytesPerPixel, FloatingPointFeature),
