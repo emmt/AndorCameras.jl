@@ -36,8 +36,8 @@ L"EventSelector"
 
 """
 function widestring(str::AbstractString,
-                    len::Integer = length(str)) :: Array{WideChar}
-    buf = Array{WideChar}(undef, len + 1)
+                    len::Integer = length(str)) :: Array{AT_CHAR}
+    buf = Array{AT_CHAR}(undef, len + 1)
     i = 0
     @inbounds for c in str
         if i ≥ len
@@ -49,17 +49,17 @@ function widestring(str::AbstractString,
     end
     @inbounds while i ≤ len
         i += 1
-        buf[i] = zero(WideChar)
+        buf[i] = zero(AT_CHAR)
     end
     return buf
 end
 
 widestring(sym::Symbol) = widestring(string(sym))
 
-function widestringtostring(C::Array{WideChar}) :: String
+function widestringtostring(C::Array{AT_CHAR}) :: String
     buf = Char[]
     @inbounds for c in C
-        if c == zero(WideChar)
+        if c == zero(AT_CHAR)
             break
         end
         push!(buf, convert(Char, c))
