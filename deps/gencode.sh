@@ -40,6 +40,15 @@ cat >"$DEST" <<'EOF'
 # Copyright (C) 2017-2019, Éric Thiébaut.
 #
 
+"""
+```julia
+using AndorCameras.Constants
+```
+
+makes all Andor cameras constants available (they are all prefixed with
+`AT_`).
+
+"""
 module Constants
 
 # Export prefixed constants.
@@ -55,11 +64,15 @@ $COMMAND | sed -n -r >>"$DEST" \
                -e '${x;s/^[ \n]*/    /;s/,[ \n]*$//;p}'
 
 # Second and third passes to generate code and definitions.
-echo >>"$DEST"
-echo >>"$DEST" "# Constants."
+cat >>"$DEST" <<'EOF'
+
+# Constants.
+EOF
 $COMMAND | grep '^ *const AT_' >>"$DEST"
-echo >>"$DEST"
-echo >>"$DEST" "end # module Constants"
-echo >>"$DEST"
-echo >>"$DEST" "# Dynamic library."
+cat >>"$DEST" <<'EOF'
+
+end # module Constants
+
+# Dynamic library.
+EOF
 $COMMAND | grep '^ *const _DLL' >>"$DEST"
