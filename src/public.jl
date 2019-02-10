@@ -7,10 +7,10 @@
 #
 # This file is part of "AndorCameras.jl" released under the MIT license.
 #
-# Copyright (C) 2017, Éric Thiébaut.
+# Copyright (C) 2017-2019, Éric Thiébaut.
 #
 
-function open(::Type{T}, dev::Integer) where {T <: Camera}
+function open(::Type{T}, dev::Integer) where {T<:Camera}
     href = Ref{Handle}()
     cam = Camera()
     code = ccall((:AT_Open, _DLL), Cint, (Cint, Ptr{Handle}), dev, href)
@@ -57,11 +57,17 @@ function getbinning(cam::Camera) :: Tuple{Int,Int}
 end
 
 function parsebinning(str::AbstractString) :: Tuple{Int,Int}
-    i = search(str, 'x')
-    try
-        return (parse(Int, str[1:i-1]), parse(Int, str[i+1:end]))
+    @noinline failure(str::AbstractString) =
+        error("unknown binning ($str)")
+    i = something(findfirst(isequal('x'), str), -1)
+    if i > 0
+        try
+            return (parse(Int, str[1:i-1]), parse(Int, str[i+1:end]))
+        catch
+            nothing
+        end
     end
-    error("unknown binning ($str)")
+    failure(str)
 end
 
 function getroi(cam::Camera)
@@ -148,8 +154,8 @@ end
 
 # "Packed" encodings mean that the pixel values are packed on consecutive
 # bytes.  Some exotic encodings only exists for the "SimCam" (simulated
-# camera) model so their exact defintion is not critical in practice.
-const _ENCODINGS = Dict(
+# camera) model so their exact definition is not critical in practice.
+const _PIXEL_ENCODING_TYPES = Dict{String,DataType}(
     "Mono8" => Monochrome{8},  # SimCam only
     "Mono12" => Monochrome{16}, # 16 bits but only 12 are significant
     "Mono16" => Monochrome{16},
@@ -161,6 +167,11 @@ const _ENCODINGS = Dict(
     "Mono22Parallel"  => Monochrome{32}, # probably inexact but SimCam only
     "Mono22PackedParallel" => Monochrome{22}) # probably inexact but SimCam only
 
+const _PIXEL_ENCODING_NAMES = Dict{DataType,String}()
+for (key, val) in _PIXEL_ENCODING_TYPES
+    _PIXEL_ENCODING_NAMES[val] = key
+end
+
 # FIXME: As part of the initialisation of the camera, we could create fast
 #        tables via the index number of the supproted formats.
 function supportedpixelformats(cam::Camera)
@@ -168,57 +179,22 @@ function supportedpixelformats(cam::Camera)
     for i in 1:maximum(cam, PixelEncoding)
         if isimplemented(cam, PixelEncoding, i)
             str = repr(cam, PixelEncoding, i)
-            U = Union{U, _ENCODINGS[str]}
+            U = Union{U, _PIXEL_ENCODING_TYPES[str]}
         end
     end
     return U
 end
 
 getpixelformat(cam::Camera) =
-    _ENCODINGS[repr(cam, PixelEncoding)]
+    _PIXEL_ENCODING_TYPES[repr(cam, PixelEncoding)]
 
-function setpixelformat!(cam::Camera, ::Type{T}) where {T <: PixelFormat}
+function setpixelformat!(cam::Camera, ::Type{T}) where {T<:PixelFormat}
     checkstate(cam, 1, true)
     if T == getpixelformat(cam)
         return T
-    elseif T == Monochrome{8}
-        try
-            cam[PixelEncoding] = "Mono8"
-            return T
-        end
-    elseif T == Monochrome{12}
-        try
-            cam[PixelEncoding] = "Mono12Packed"
-            return T
-        end
-    elseif T == Monochrome{16}
-        try
-            cam[PixelEncoding] = "Mono16"
-            return T
-        end
-        try
-            cam[PixelEncoding] = "Mono12"
-            return T
-        end
-    elseif T == Monochrome{22}
-        try
-            cam[PixelEncoding] = "Mono22PackedParallel"
-            return T
-        end
-    elseif T == Monochrome{32}
-        try
-            cam[PixelEncoding] = "Mono32"
-            return T
-        end
-        try
-            cam[PixelEncoding] = "Mono22Parallel"
-            return T
-        end
-    elseif T == RGB{8}
-        try
-            cam[PixelEncoding] = "RGB8Packed"
-            return T
-        end
+    elseif haskey(_PIXEL_ENCODING_NAMES, T)
+        cam[PixelEncoding] = _PIXEL_ENCODING_NAMES[T]
+        return T
     end
     error("unsupported pixel encoding")
 end
@@ -281,7 +257,7 @@ function read(cam::Camera, ::Type{T}, num::Int;
     final = time() + convert(Float64, timeout)
 
     # Allocate vector of images.
-    imgs = Vector{Array{T,2}}(num)
+    imgs = Vector{Array{T,2}}(undef, num)
 
     # Start the acquisition.
     start(cam, T, 4)
@@ -379,7 +355,7 @@ function start(cam::Camera, ::Type{T}, nbufs::Int) where {T}
     end
     for i in 1:nbufs
         if ! isassigned(cam.bufs, i) || sizeof(cam.bufs[i]) != framesize
-            cam.bufs[i] = Vector{UInt8}(framesize)
+            cam.bufs[i] = Vector{UInt8}(undef, framesize)
         end
         code = ccall((:AT_QueueBuffer, _DLL), Cint, (Cint, Ptr{UInt8}, Cint),
                      cam.handle, cam.bufs[i], framesize)
@@ -396,7 +372,7 @@ function start(cam::Camera, ::Type{T}, nbufs::Int) where {T}
               : cam[SensorHeight])
     stride = div(framesize - (cam.clockfrequency > 0 ? METADATA_SIZE : 0),
                  height)
-    cam.lastimg = Array{T,2}(width, height)
+    cam.lastimg = Array{T,2}(undef, width, height)
     cam.mono12packed = (repr(cam, PixelEncoding) == "Mono12Packed") # FIXME:
     if isimplemented(cam, AOIStride)
         cam.bytesperline = cam[AOIStride]
