@@ -14,17 +14,13 @@ isdefined(Base, :__precompile__) && __precompile__(true)
 
 module AndorCameras
 
-importall ScientificCameras
-import ScientificCameras: TimeoutError, ScientificCamera, ROI
-using ScientificCameras.PixelFormats
-
 export
     AndorError
 
 # Import `ScientificCameras` methods in such a way that they can be extended in
 # this module and re-export them to make things easier for the end-user.
 # FIXME: See https://github.com/NTimmons/ImportAll.jl
-using ScientificCameras
+using ScientificCameras, ScientificCameras.PixelFormats
 for sym in names(ScientificCameras)
     if sym != :ScientificCameras
         @eval begin
@@ -33,6 +29,10 @@ for sym in names(ScientificCameras)
         end
     end
 end
+import ScientificCameras: TimeoutError, ScientificCamera, ROI
+
+using Printf
+import Sockets: send
 
 include("constants.jl")
 using .Constants
