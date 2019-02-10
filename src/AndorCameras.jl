@@ -7,7 +7,7 @@
 #
 # This file is part of "AndorCameras.jl" released under the MIT license.
 #
-# Copyright (C) 2017, Éric Thiébaut.
+# Copyright (C) 2017-2019, Éric Thiébaut.
 #
 
 isdefined(Base, :__precompile__) && __precompile__(true)
@@ -21,8 +21,18 @@ using ScientificCameras.PixelFormats
 export
     AndorError
 
-# Re-export the public interface of the ScientificCameras module.
-ScientificCameras.@exportpublicinterface
+# Import `ScientificCameras` methods in such a way that they can be extended in
+# this module and re-export them to make things easier for the end-user.
+# FIXME: See https://github.com/NTimmons/ImportAll.jl
+using ScientificCameras
+for sym in names(ScientificCameras)
+    if sym != :ScientificCameras
+        @eval begin
+            import ScientificCameras: $sym
+            export $sym
+        end
+    end
+end
 
 include("constants.jl")
 using .Constants
