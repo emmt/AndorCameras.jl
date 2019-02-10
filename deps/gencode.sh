@@ -11,21 +11,20 @@
 # Copyright (C) 2017-2019, Éric Thiébaut.
 #
 
-if test $# != 1; then
-   echo >&2 "Usage: $0 DEST"
+if test $# != 2; then
+   echo >&2 "Usage: $0 INP OUT"
    exit 1
 fi
-DEST=$1
+INP=$1
+OUT=$2
 
-COMMAND=./gencode
-
-if ! test -x "$COMMAND"; then
-   echo >&2 "Error: command '$COMMAND' is not an executable."
+if ! test -r "$INP"; then
+   echo >&2 "$0: file '$INP' is not readable."
    exit 1
 fi
 
 # Generate header.
-cat >"$DEST" <<'EOF'
+cat >"$OUT" <<'EOF'
 #
 # constants.jl --
 #
@@ -56,23 +55,23 @@ export
 EOF
 
 # First pass to generate list of exported symbols.
-$COMMAND | sed -n -r >>"$DEST" \
-               -e 's/[ \t]+/ /g' \
-               -e '/^ *const AT_/!d' \
-               -e 's/^ *const (AT_[_A-Z0-9]*).*/    \1,/' \
-               -e 'H' \
-               -e '${x;s/^[ \n]*/    /;s/,[ \n]*$//;p}'
+sed -n -r <"$INP" >>"$OUT" \
+    -e 's/[ \t]+/ /g' \
+    -e '/^ *const AT_/!d' \
+    -e 's/^ *const (AT_[_A-Z0-9]*).*/    \1,/' \
+    -e 'H' \
+    -e '${x;s/^[ \n]*/    /;s/,[ \n]*$//;p}'
 
 # Second and third passes to generate code and definitions.
-cat >>"$DEST" <<'EOF'
+cat >>"$OUT" <<'EOF'
 
 # Constants.
 EOF
-$COMMAND | grep '^ *const AT_' >>"$DEST"
-cat >>"$DEST" <<'EOF'
+grep <"$INP" >>"$OUT" '^ *const AT_'
+cat >>"$OUT" <<'EOF'
 
 end # module Constants
 
 # Dynamic library.
 EOF
-$COMMAND | grep '^ *const _DLL' >>"$DEST"
+grep <"$INP" >>"$OUT" '^ *const _DLL'

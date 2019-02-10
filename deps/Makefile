@@ -30,14 +30,17 @@ LDFLAGS =
 default: all
 
 clean:
-	rm -f *~ *.o gencode
+	rm -f *~ *.o gencode gencode.out
 
 all: $(srcdir)/../src/constants.jl
 
-$(srcdir)/../src/constants.jl: gencode gencode.sh
+$(srcdir)/../src/constants.jl: gencode.out gencode.sh
 	rm -f "$@"
-	./gencode.sh "$@"
+	./gencode.sh gencode.out "$@"
 	chmod a-w "$@"
+
+gencode.out: gencode
+	./gencode >gencode.out
 
 gencode: gencode.c Makefile
 	$(CC) $(CPPFLAGS) $(AT_DEFS) $(CFLAGS) \
