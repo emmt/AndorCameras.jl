@@ -7,14 +7,14 @@
 #
 # This file is part of "AndorCameras.jl" released under the MIT license.
 #
-# Copyright (C) 2017, Éric Thiébaut.
+# Copyright (C) 2017-2019, Éric Thiébaut.
 #
 
 Base.showerror(io::IO, e::AndorError) =
     print(io, "Error in ", e.func, ": ", geterrormessage(e.code), " [",
           geterrorsymbol(e.code), "]")
 
-const _ERR_REASONS = Dict(
+const _ERR_REASONS = Dict{AT_STATUS,String}(
     AT_SUCCESS                      => "Function call has been successful",
     AT_ERR_NOTINITIALISED           => "Function called with an uninitialized handle",
     AT_ERR_NOTIMPLEMENTED           => "Feature has not been implemented for the chosen camera",
@@ -58,7 +58,7 @@ const _ERR_REASONS = Dict(
 geterrormessage(code::Integer) =
     get(_ERR_REASONS, code, "Unknown error code")
 
-const _ERR_SYMBOLS = Dict(
+const _ERR_SYMBOLS = Dict{AT_STATUS,Symbol}(
     AT_SUCCESS                      => :AT_SUCCESS,
     AT_ERR_NOTINITIALISED           => :AT_ERR_NOTINITIALISED,
     AT_ERR_NOTIMPLEMENTED           => :AT_ERR_NOTIMPLEMENTED,
