@@ -7,7 +7,7 @@
 #
 # This file is part of "AndorCameras.jl" released under the MIT license.
 #
-# Copyright (C) 2017, Éric Thiébaut.
+# Copyright (C) 2017-2019, Éric Thiébaut.
 #
 
 # Custom exception to report errors.
@@ -29,8 +29,8 @@ mutable struct Camera <: ScientificCamera
     mono12packed::Bool
     handle::Handle
     Camera() = new(0,
-                   Vector{Vector{UInt8}}(0),
-                   Array{UInt8,2}(0,0),
+                   Vector{Vector{UInt8}}(undef, 0),
+                   Array{UInt8,2}(undef, 0, 0),
                    0, 0, false, -1)
 end
 

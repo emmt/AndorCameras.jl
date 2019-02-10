@@ -7,7 +7,7 @@
 #
 # This file is part of "AndorCameras.jl" released under the MIT license.
 #
-# Copyright (C) 2017, Éric Thiébaut.
+# Copyright (C) 2017-2019, Éric Thiébaut.
 #
 
 getnumberofdevices() = Int(_devicecount[])
@@ -112,7 +112,7 @@ end
 
 # Execute a command:
 
-Base.send(cam::Camera, cmd::CommandFeature) =
+send(cam::Camera, cmd::CommandFeature) =
     _command(cam, cmd, true)
 
 
@@ -270,7 +270,7 @@ function Base.getindex(cam::Camera, key::StringFeature)
     if num < 1
         error("invalid string length for feature \"$(repr(key.name))\"")
     end
-    buf = Array{WideChar}(num)
+    buf = Vector{WideChar}(undef, num)
     code = ccall((:AT_GetString, _DLL), Cint,
                  (Handle, Ptr{WideChar}, Ptr{WideChar}, Cint),
                  cam.handle, key.name, buf, num)
@@ -340,7 +340,7 @@ Base.repr(cam::Camera, key::EnumeratedFeature) =
 
 function Base.repr(cam::Camera, key::EnumeratedFeature, index::Integer)
     num = 64
-    buf = Array{WideChar}(num)
+    buf = Vector{WideChar}(undef, num)
     code = ccall((:AT_GetEnumStringByIndex, _DLL), Cint,
                  (Handle, Ptr{WideChar}, Cint, Ptr{WideChar}, Cint),
                  cam.handle, key.name, index - 1, buf, num)
