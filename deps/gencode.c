@@ -96,7 +96,11 @@ int main(int argc, char* argv[])
   printf("const AT_BYTE    = UInt8    # AT_U8 in <atcore.h>\n");
   printf("const AT_CHAR    = Cwchar_t # AT_WC in <atcore.h>\n");
   printf("const AT_STRING  = Cwstring\n");
+#if 0
   printf("const AT_FEATURE = Cwstring\n");
+#else
+  printf("const AT_FEATURE = Ptr{AT_CHAR}\n");
+#endif
   printf("const AT_LENGTH  = Cint     # for string length\n");
   printf("const AT_MSEC    = Cuint    # for timeout in milliseconds\n");
 #ifdef AT_INFINITE
