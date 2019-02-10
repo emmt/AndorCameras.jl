@@ -10,22 +10,22 @@
 # Copyright (C) 2017-2019, Éric Thiébaut.
 #
 
-function open(::Type{T}, dev::Integer) where {T<:Camera}
-    href = Ref{Handle}()
+function open(::Type{Camera}, dev::Integer)
+    href = Ref{AT_HANDLE}()
+    code = ccall((:AT_Open, _DLL), AT_STATUS,
+                 (AT_INDEX, Ptr{AT_HANDLE}), dev, href)
+    _checkstatus(:AT_Open, code)
     cam = Camera()
-    code = ccall((:AT_Open, _DLL), Cint, (Cint, Ptr{Handle}), dev, href)
-    code == AT_SUCCESS || throw(AndorError(:AT_Open, code))
-    finalizer(cam, _close)
     cam.state = 1
     cam.handle = href[]
-    return cam
+    return finalizer(_close, cam)
 end
 
 close(cam::Camera) = _close(cam, true)
 
 function stop(cam::Camera)
     if cam.state != 2
-        warn("not acquiring")
+        @warn "not acquiring"
         return nothing
     end
     _stop(cam, true)
@@ -36,9 +36,9 @@ end
 
 abort(cam::Camera) = stop(cam)
 
-getfullwidth(cam::Camera) = cam[SensorWidth] :: Int
+getfullwidth(cam::Camera) = Int(cam[SensorWidth])
 
-getfullheight(cam::Camera) = cam[SensorHeight] :: Int
+getfullheight(cam::Camera) = Int(cam[SensorHeight])
 
 #getroistride(cam::Camera) =
 #    (isimplemented(cam, AOIStride) ? cam[AOIStride] :
@@ -242,7 +242,7 @@ const METADATA_SIZE = (LENGTH_FIELD_SIZE + CID_FIELD_SIZE
 # Extend method.
 function getcapturebitstype(cam::Camera)
     T = equivalentbitstype(getpixelformat(cam))
-    return (T == Void ? UInt8 : T)
+    return (T == Void ? AT_BYTE : T)
 end
 
 # Extend method.
@@ -254,7 +254,7 @@ function read(cam::Camera, ::Type{T}, num::Int;
 
     # Final time (in seconds).
     timeout > zero(timeout) || error("invalid timeout")
-    final = time() + convert(Float64, timeout)
+    final = time() + Float64(timeout)
 
     # Allocate vector of images.
     imgs = Vector{Array{T,2}}(undef, num)
@@ -266,11 +266,11 @@ function read(cam::Camera, ::Type{T}, num::Int;
     cnt = 0
     while cnt < num
         try
-            _wait(cam, round(Cint, max(final - time(), 0.0)*1E3),
+            _wait(cam, round(AT_MSEC, max(final - time(), 0.0)*1E3),
                   skip > zero(skip))
         catch err
             if truncate && isa(err, TimeoutError)
-                quiet || warn("Acquisition timeout after $cnt image(s)")
+                quiet || @warn "acquisition timeout after $cnt image(s)" # FIXME:
                 num = cnt
                 resize!(imgs, num)
             else
@@ -297,7 +297,7 @@ function read(cam::Camera, ::Type{T};
 
     # Final time (in seconds).
     timeout > zero(timeout) || error("invalid timeout")
-    final = time() + convert(Float64, timeout)
+    final = time() + Float64(timeout)
 
     # Start the acquisition.
     start(cam, T, 2)
@@ -305,7 +305,7 @@ function read(cam::Camera, ::Type{T};
     # Acquire all images.
     while true
         try
-            _wait(cam, round(Cint, max(final - time(), 0.0)*1E3),
+            _wait(cam, round(AT_MSEC, max(final - time(), 0.0)*1E3),
                   skip > zero(skip))
         catch err
             abort(cam)
@@ -355,10 +355,11 @@ function start(cam::Camera, ::Type{T}, nbufs::Int) where {T}
     end
     for i in 1:nbufs
         if ! isassigned(cam.bufs, i) || sizeof(cam.bufs[i]) != framesize
-            cam.bufs[i] = Vector{UInt8}(undef, framesize)
+            cam.bufs[i] = Vector{AT_BYTE}(undef, framesize)
         end
-        code = ccall((:AT_QueueBuffer, _DLL), Cint, (Cint, Ptr{UInt8}, Cint),
-                     cam.handle, cam.bufs[i], framesize)
+        code = ccall((:AT_QueueBuffer, _DLL), AT_STATUS,
+                     (AT_HANDLE, Ptr{AT_BYTE}, AT_LENGTH),
+                     cam, cam.bufs[i], framesize)
         if code != AT_SUCCESS
             _flush(cam, false)
             throw(AndorError(:AT_QueueBuffer, code))
@@ -377,8 +378,8 @@ function start(cam::Camera, ::Type{T}, nbufs::Int) where {T}
     if isimplemented(cam, AOIStride)
         cam.bytesperline = cam[AOIStride]
         if cam.bytesperline != stride
-            warn("computed stride ($(stride) bytes) is not equal to ",
-                 "AOIStride ($(cam.bytesperline) bytes)")
+            @warn("computed stride ($(stride) bytes) is not equal to ",
+                  "AOIStride ($(cam.bytesperline) bytes)")
         end
     else
         cam.bytesperline = stride
@@ -396,7 +397,7 @@ end
 
 # Extend method.
 function wait(cam::Camera, sec::Float64 = 0.0)
-    ms = (sec ≥ typemax(Cint) ? AT_INFINITE : round(Cint, sec*1_000))
+    ms = (sec ≥ typemax(AT_MSEC) ? AT_INFINITE : round(AT_MSEC, sec*1_000))
     ticks = _wait(cam, ms, false)
     return cam.lastimg, ticks
 end
@@ -415,11 +416,11 @@ function _wait(cam::Camera, ms::Integer, skip::Bool)
     # is pretended to be `Cint` because `AT_INFINITE` is `-1` whereas it is
     # `Cuint`.  This limits the maximum allowed timeout to about 24.9 days
     # which should be sufficient!
-    refptr = Ref{Ptr{UInt8}}()
-    refsiz = Ref{Cint}()
-    code = ccall((:AT_WaitBuffer, _DLL), Cint,
-                 (Handle, Ptr{Ptr{UInt8}}, Ptr{Cint}, Cint),
-                 cam.handle, refptr, refsiz, ms)
+    refptr = Ref{Ptr{AT_BYTE}}()
+    refsiz = Ref{AT_LENGTH}()
+    code = ccall((:AT_WaitBuffer, _DLL), AT_STATUS,
+                 (AT_HANDLE, Ref{Ptr{AT_BYTE}}, Ref{AT_LENGTH}, AT_MSEC),
+                 cam, refptr, refsiz, ms)
     if code != AT_SUCCESS
         if code == AT_ERR_TIMEDOUT
             throw(TimeoutError())
@@ -453,9 +454,9 @@ function _wait(cam::Camera, ms::Integer, skip::Bool)
                     extract!(cam.lastimg, buf, cam.bytesperline)
                 end
             end
-            code = ccall((:AT_QueueBuffer, _DLL), Cint,
-                         (Cint, Ptr{UInt8}, Cint),
-                         cam.handle, buf, framesize)
+            code = ccall((:AT_QueueBuffer, _DLL), AT_STATUS,
+                         (AT_HANDLE, Ptr{AT_BYTE}, AT_LENGTH),
+                         cam, buf, framesize)
             if code != AT_SUCCESS
                 # Stop acquisition and report error.
                 _stop(cam, false)

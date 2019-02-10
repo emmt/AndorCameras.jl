@@ -12,21 +12,24 @@
 
 getnumberofdevices() = Int(_devicecount[])
 
-const _devicecount = Ref{Int64}()
+const _devicecount = Ref{AT_INT}()
 
 function __init__()
-    code = ccall((:AT_InitialiseLibrary, _DLL), Cint, ())
-    code == AT_SUCCESS || throw(AndorError(:AT_InitialiseLibrary, code))
-    code = ccall((:AT_GetInt, _DLL), Cint, (Handle, Ptr{WideChar}, Ptr{Int64}),
+    code = ccall((:AT_InitialiseLibrary, _DLL), AT_STATUS, ())
+    _checkstatus(:AT_InitialiseLibrary, code)
+    code = ccall((:AT_GetInt, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Ref{AT_INT}),
                  AT_HANDLE_SYSTEM, L"DeviceCount", _devicecount)
     if code != AT_SUCCESS
-        ccall((:AT_FinaliseLibrary, _DLL), Cint, ())
+        ccall((:AT_FinaliseLibrary, _DLL), AT_STATUS, ())
         throw(AndorError(:AT_GetInt, code))
     end
 end
 
 """
-    checkstate(cam, state, throwerrors=false)
+```julia
+checkstate(cam, state, throwerrors=false)
+```
 
 returns whether camera `cam` is in a specific state: 0 if it must be closed
 (or not yet open), 1 if it must be open (but acquisition not running) or 2
@@ -54,11 +57,14 @@ function checkstate(cam::Camera, state::Integer, throwerrors::Bool = false)
         if throwerrors
             error(msg)
         else
-            warn(msg)
+            @warn msg
         end
         return false
     end
 end
+
+_checkstatus(func::Union{Symbol,AbstractString}, code::Integer) =
+    code == AT_SUCCESS || throw(AndorError(func, code))
 
 function _close(cam::Camera, throwerrors::Bool = false)
     if cam.state > 1
@@ -68,23 +74,20 @@ function _close(cam::Camera, throwerrors::Bool = false)
         cam.state = 1
     end
     if cam.state > 0
-        # Release handle.
-        code = ccall((:AT_Close, _DLL), Cint, (Handle,), cam.handle)
-        if code != AT_SUCCESS && throwerrors
-            throw(AndorError(:AT_Close, code))
-        end
-        cam.handle = -1
+        # Close handle.  Manage to avoid re-closing.
+        code = ccall((:AT_Close, _DLL), AT_STATUS, (AT_HANDLE,), cam)
+        cam.handle = AT_HANDLE_UNINITIALISED
         cam.state = 0
+        throwerrors && code != AT_SUCCESS && throw(AndorError(:AT_Close, code))
     end
     nothing
 end
 
 function _command(cam::Camera, cmd::CommandFeature, throwerrors::Bool = false)
-    code = ccall((:AT_Command, _DLL), Cint, (Handle, Ptr{WideChar}),
-                 cam.handle, cmd.name)
-    if code != AT_SUCCESS && throwerrors
-        throw(AndorError(:AT_Command, code))
-    end
+    code = ccall((:AT_Command, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE),
+                 cam, cmd.name)
+    throwerrors && code != AT_SUCCESS && throw(AndorError(:AT_Command, code))
     nothing
 end
 
@@ -93,7 +96,9 @@ _stop(cam::Camera, throwerrors::Bool = false) =
 
 
 """
-    _flush(cam, throwerrors=false) -> code
+```julia
+_flush(cam, throwerrors=false) -> code
+```
 
 flushes out any remaining buffers that have been queued using the
 `_queuebuffer` function.  If this function is not called after an acquisition
@@ -103,10 +108,8 @@ acquisition is started.  This function should always be called after the
 
 """
 function _flush(cam::Camera, throwerrors::Bool = false)
-    code = ccall((:AT_Flush, _DLL), Cint, (Handle,), cam.handle)
-    if code != AT_SUCCESS && throwerrors
-        throw(AndorError(:AT_Flush, code))
-    end
+    code = ccall((:AT_Flush, _DLL), AT_STATUS, (AT_HANDLE,), cam)
+    throwerrors && code != AT_SUCCESS && throw(AndorError(:AT_Flush, code))
     return code
 end
 
@@ -119,79 +122,64 @@ send(cam::Camera, cmd::CommandFeature) =
 # Methods for any feature type:
 
 function isimplemented(cam::Camera, key::AbstractFeature)
-    ref = Ref{Cint}()
-    code = ccall((:AT_IsImplemented, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Ptr{Cint}),
-                 cam.handle, key.name, ref)
-    code == AT_SUCCESS || throw(AndorError(:AT_IsImplemented, code))
-    return (ref[] == AT_TRUE)
+    ref = Ref{AT_BOOL}()
+    code = ccall((:AT_IsImplemented, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Ref{AT_BOOL}),
+                 cam, key.name, ref)
+    _checkstatus(:AT_IsImplemented, code)
+    return (ref[] != AT_FALSE)
 end
 
-function Base.isreadable(cam::Camera, key::AbstractFeature)
-    ref = Ref{Cint}()
-    code = ccall((:AT_IsReadable, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Ptr{Cint}),
-                 cam.handle, key.name, ref)
-    code == AT_SUCCESS || throw(AndorError(:AT_IsReadable, code))
-    return (ref[] == AT_TRUE)
+for (jfun, cfun) in ((:isreadable, "AT_IsReadable"),
+                     (:iswritable, "AT_IsWritable"),
+                     (:isreadonly, "AT_IsReadOnly"))
+    @eval function Base.$jfun(cam::Camera, key::AbstractFeature)
+        ref = Ref{AT_BOOL}()
+        code = ccall(($cfun, _DLL), AT_STATUS,
+                     (AT_HANDLE, AT_FEATURE, Ref{AT_BOOL}),
+                     cam, key.name, ref)
+        _checkstatus($cfun, code)
+        return (ref[] != AT_FALSE)
+    end
 end
-
-function Base.iswritable(cam::Camera, key::AbstractFeature)
-    ref = Ref{Cint}()
-    code = ccall((:AT_IsWritable, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Ptr{Cint}),
-                 cam.handle, key.name, ref)
-    code == AT_SUCCESS || throw(AndorError(:AT_IsWritable, code))
-    return (ref[] == AT_TRUE)
-end
-
-function Base.isreadonly(cam::Camera, key::AbstractFeature)
-    ref = Ref{Cint}()
-    code = ccall((:AT_IsReadOnly, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Ptr{Cint}),
-                 cam.handle, key.name, ref)
-    code == AT_SUCCESS || throw(AndorError(:AT_IsReadOnly, code))
-    return (ref[] == AT_TRUE)
-end
-
 
 # Integer features:
 
 function Base.getindex(cam::Camera, key::IntegerFeature)
-    ref = Ref{Int64}()
-    code = ccall((:AT_GetInt, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Ptr{Int64}),
-                 cam.handle, key.name, ref)
-    code == AT_SUCCESS || throw(AndorError(:AT_GetInt, code))
+    ref = Ref{AT_INT}()
+    code = ccall((:AT_GetInt, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Ref{AT_INT}),
+                 cam, key.name, ref)
+    _checkstatus(:AT_GetInt, code)
     return Int(ref[])
 end
 
 Base.setindex!(cam::Camera, val::Integer, key::IntegerFeature) =
-    setindex!(cam, convert(Int64, val), key)
+    setindex!(cam, AT_INT(val), key)
 
-function Base.setindex!(cam::Camera, val::Int64, key::IntegerFeature)
-    code = ccall((:AT_SetInt, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Int64),
-                 cam.handle, key.name, val)
-    code == AT_SUCCESS || throw(AndorError(:AT_SetInt, code))
+function Base.setindex!(cam::Camera, val::AT_INT, key::IntegerFeature)
+    code = ccall((:AT_SetInt, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, AT_INT),
+                 cam, key.name, val)
+    _checkstatus(:AT_SetInt, code)
     return nothing
 end
 
 function Base.minimum(cam::Camera, key::IntegerFeature)
-    ref = Ref{Int64}()
-    code = ccall((:AT_GetIntMin, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Ptr{Int64}),
-                 cam.handle, key.name, ref)
-    code == AT_SUCCESS || throw(AndorError(:AT_GetIntMin, code))
+    ref = Ref{AT_INT}()
+    code = ccall((:AT_GetIntMin, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Ref{AT_INT}),
+                 cam, key.name, ref)
+    _checkstatus(:AT_GetIntMin, code)
     return Int(ref[])
 end
 
 function Base.maximum(cam::Camera, key::IntegerFeature)
-    ref = Ref{Int64}()
-    code = ccall((:AT_GetIntMax, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Ptr{Int64}),
-                 cam.handle, key.name, ref)
-    code == AT_SUCCESS || throw(AndorError(:AT_GetIntMax, code))
+    ref = Ref{AT_INT}()
+    code = ccall((:AT_GetIntMax, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Ref{AT_INT}),
+                 cam, key.name, ref)
+    _checkstatus(:AT_GetIntMax, code)
     return Int(ref[])
 end
 
@@ -199,41 +187,41 @@ end
 # Floating-point features:
 
 function Base.getindex(cam::Camera, key::FloatingPointFeature)
-    ref = Ref{Cdouble}()
-    code = ccall((:AT_GetFloat, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Ptr{Cdouble}),
-                 cam.handle, key.name, ref)
-    code == AT_SUCCESS || throw(AndorError(:AT_GetFloat, code))
+    ref = Ref{AT_FLOAT}()
+    code = ccall((:AT_GetFloat, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Ref{AT_FLOAT}),
+                 cam, key.name, ref)
+    _checkstatus(:AT_GetFloat, code)
     return ref[]
 end
 
 Base.setindex!(cam::Camera, val::Real, key::FloatingPointFeature) =
-    setindex!(cam, convert(Cdouble, val), key)
+    setindex!(cam, convert(AT_FLOAT, val), key)
 
-function Base.setindex!(cam::Camera, val::Cdouble,
+function Base.setindex!(cam::Camera, val::AT_FLOAT,
                         key::FloatingPointFeature)
-    code = ccall((:AT_SetFloat, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Cdouble),
-                 cam.handle, key.name, val)
-    code == AT_SUCCESS || throw(AndorError(:AT_SetFloat, code))
+    code = ccall((:AT_SetFloat, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, AT_FLOAT),
+                 cam, key.name, val)
+    _checkstatus(:AT_SetFloat, code)
     return nothing
 end
 
 function Base.minimum(cam::Camera, key::FloatingPointFeature)
-    ref = Ref{Cdouble}()
-    code = ccall((:AT_GetFloatMin, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Ptr{Cdouble}),
-                 cam.handle, key.name, ref)
-    code == AT_SUCCESS || throw(AndorError(:AT_GetFloatMin, code))
+    ref = Ref{AT_FLOAT}()
+    code = ccall((:AT_GetFloatMin, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Ref{AT_FLOAT}),
+                 cam, key.name, ref)
+    _checkstatus(:AT_GetFloatMin, code)
     return ref[]
 end
 
 function Base.maximum(cam::Camera, key::FloatingPointFeature)
-    ref = Ref{Cdouble}()
-    code = ccall((:AT_GetFloatMax, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Ptr{Cdouble}),
-                 cam.handle, key.name, ref)
-    code == AT_SUCCESS || throw(AndorError(:AT_GetFloatMax, code))
+    ref = Ref{AT_FLOAT}()
+    code = ccall((:AT_GetFloatMax, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Ref{AT_FLOAT}),
+                 cam, key.name, ref)
+    _checkstatus(:AT_GetFloatMax, code)
     return ref[]
 end
 
@@ -241,19 +229,19 @@ end
 # Boolean features:
 
 function Base.getindex(cam::Camera, key::BooleanFeature)
-    ref = Ref{Cint}()
-    code = ccall((:AT_GetBool, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Ptr{Cint}),
-                 cam.handle, key.name, ref)
-    code == AT_SUCCESS || throw(AndorError(:AT_GetBool, code))
-    return (ref[] == AT_TRUE)
+    ref = Ref{AT_BOOL}()
+    code = ccall((:AT_GetBool, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Ptr{AT_BOOL}),
+                 cam, key.name, ref)
+    _checkstatus(:AT_GetBool, code)
+    return (ref[] != AT_FALSE)
 end
 
 function Base.setindex!(cam::Camera, val::Bool, key::BooleanFeature)
-    code = ccall((:AT_SetBool, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Cint),
-                 cam.handle, key.name, (val ? AT_TRUE : AT_FALSE))
-    code == AT_SUCCESS || throw(AndorError(:AT_SetBool, code))
+    code = ccall((:AT_SetBool, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, AT_BOOL),
+                 cam, key.name, (val ? AT_TRUE : AT_FALSE))
+    _checkstatus(:AT_SetBool, code)
     return nothing
 end
 
@@ -261,36 +249,36 @@ end
 # String features:
 
 function Base.getindex(cam::Camera, key::StringFeature)
-    ref = Ref{Cint}()
-    code = ccall((:AT_GetStringMaxLength, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Ptr{Cint}),
-                 cam.handle, key.name, ref)
-    code == AT_SUCCESS || throw(AndorError(:AT_GetStringMaxLength, code))
+    ref = Ref{AT_LENGTH}()
+    code = ccall((:AT_GetStringMaxLength, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Ref{AT_LENGTH}),
+                 cam, key.name, ref)
+    _checkstatus(:AT_GetStringMaxLength, code)
     num = Int(ref[])
     if num < 1
         error("invalid string length for feature \"$(repr(key.name))\"")
     end
-    buf = Vector{WideChar}(undef, num)
-    code = ccall((:AT_GetString, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Ptr{WideChar}, Cint),
-                 cam.handle, key.name, buf, num)
-    code == AT_SUCCESS || throw(AndorError(:AT_GetString, code))
-    # FIXME: not needed buf[end] = zero(WideChar)
+    buf = Vector{AT_CHAR}(undef, num)
+    code = ccall((:AT_GetString, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Ptr{AT_CHAR}, AT_LENGTH),
+                 cam, key.name, buf, num)
+    _checkstatus(:AT_GetString, code)
+    buf[num] = zero(AT_CHAR)
     return widestringtostring(buf)
 end
 
 Base.setindex!(cam::Camera, val::AbstractString, key::StringFeature) =
     setindex!(cam, widestring(val), key)
 
-function Base.setindex!(cam::Camera, val::Vector{WideChar},
+function Base.setindex!(cam::Camera, val::Vector{AT_CHAR},
                         key::StringFeature)
-    if length(val) < 1 || val[end] != zero(WideChar)
+    if length(val) < 1 || val[end] != zero(AT_CHAR)
         error("invalid wide string value")
     end
-    code = ccall((:AT_SetString, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Ptr{WideChar}),
-                 cam.handle, key.name, val)
-    code == AT_SUCCESS || throw(AndorError(:AT_SetString, code))
+    code = ccall((:AT_SetString, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Ptr{AT_CHAR}),
+                 cam, key.name, val)
+    _checkstatus(:AT_SetString, code)
     return nothing
 end
 
@@ -299,10 +287,10 @@ end
 
 function Base.getindex(cam::Camera, key::EnumeratedFeature)
     ref = Ref{Cint}()
-    code = ccall((:AT_GetEnumIndex, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Ptr{Cint}),
-                 cam.handle, key.name, ref)
-    code == AT_SUCCESS || throw(AndorError(:AT_GetEnumIndex, code))
+    code = ccall((:AT_GetEnumIndex, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Ptr{Cint}),
+                 cam, key.name, ref)
+    _checkstatus(:AT_GetEnumIndex, code)
     return Int(ref[]) + 1
 end
 
@@ -310,28 +298,28 @@ Base.minimum(cam::Camera, key::EnumeratedFeature) = 1
 
 function Base.maximum(cam::Camera, key::EnumeratedFeature)
     ref = Ref{Cint}()
-    code = ccall((:AT_GetEnumCount, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Ptr{Cint}),
-                 cam.handle, key.name, ref)
-    code == AT_SUCCESS || throw(AndorError(:AT_GetEnumCount, code))
+    code = ccall((:AT_GetEnumCount, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Ptr{Cint}),
+                 cam, key.name, ref)
+    _checkstatus(:AT_GetEnumCount, code)
     return Int(ref[])
 end
 
 function isavailable(cam::Camera, key::EnumeratedFeature, index::Integer)
     ref = Ref{Cint}()
-    code = ccall((:AT_IsEnumIndexAvailable, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Cint, Ptr{Cint}),
-                 cam.handle, key.name, index - 1, ref)
-    code == AT_SUCCESS || throw(AndorError(:AT_IsEnumIndexAvailable, code))
+    code = ccall((:AT_IsEnumIndexAvailable, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Cint, Ptr{Cint}),
+                 cam, key.name, index - 1, ref)
+    _checkstatus(:AT_IsEnumIndexAvailable, code)
     return (ref[] == AT_TRUE)
 end
 
 function isimplemented(cam::Camera, key::EnumeratedFeature, index::Integer)
     ref = Ref{Cint}()
-    code = ccall((:AT_IsEnumIndexImplemented, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Cint, Ptr{Cint}),
-                 cam.handle, key.name, index - 1, ref)
-    code == AT_SUCCESS || throw(AndorError(:AT_IsEnumIndexImplemented, code))
+    code = ccall((:AT_IsEnumIndexImplemented, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Cint, Ptr{Cint}),
+                 cam, key.name, index - 1, ref)
+    _checkstatus(:AT_IsEnumIndexImplemented, code)
     return (ref[] == AT_TRUE)
 end
 
@@ -340,35 +328,35 @@ Base.repr(cam::Camera, key::EnumeratedFeature) =
 
 function Base.repr(cam::Camera, key::EnumeratedFeature, index::Integer)
     num = 64
-    buf = Vector{WideChar}(undef, num)
-    code = ccall((:AT_GetEnumStringByIndex, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Cint, Ptr{WideChar}, Cint),
-                 cam.handle, key.name, index - 1, buf, num)
-    code == AT_SUCCESS || throw(AndorError(:AT_GetEnumStringByIndex, code))
-    buf[num] = zero(WideChar)
+    buf = Vector{AT_CHAR}(undef, num)
+    code = ccall((:AT_GetEnumStringByIndex, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Cint, Ptr{AT_CHAR}, Cint),
+                 cam, key.name, index - 1, buf, num)
+    _checkstatus(:AT_GetEnumStringByIndex, code)
+    buf[num] = zero(AT_CHAR)
     return widestringtostring(buf)
 end
 
 Base.setindex!(cam::Camera, val::AbstractString, key::EnumeratedFeature) =
     setindex!(cam, widestring(val), key)
 
-function Base.setindex!(cam::Camera, val::Vector{WideChar},
+function Base.setindex!(cam::Camera, val::Vector{AT_CHAR},
                         key::EnumeratedFeature)
-    if length(val) < 1 || val[end] != zero(WideChar)
+    if length(val) < 1 || val[end] != zero(AT_CHAR)
         error("invalid wide string value")
     end
-    code = ccall((:AT_SetEnumString, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Ptr{WideChar}),
-                 cam.handle, key.name, val)
-    code == AT_SUCCESS || throw(AndorError(:AT_SetEnumString, code))
+    code = ccall((:AT_SetEnumString, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Ptr{AT_CHAR}),
+                 cam, key.name, val)
+    _checkstatus(:AT_SetEnumString, code)
     return nothing
 end
 
 function Base.setindex!(cam::Camera, val::Integer, key::EnumeratedFeature)
-    code = ccall((:AT_SetEnumIndex, _DLL), Cint,
-                 (Handle, Ptr{WideChar}, Cint),
-                 cam.handle, key.name, val + 1)
-    code == AT_SUCCESS || throw(AndorError(:AT_SetEnumIndex, code))
+    code = ccall((:AT_SetEnumIndex, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, Cint),
+                 cam, key.name, val + 1)
+    _checkstatus(:AT_SetEnumIndex, code)
     return nothing
 end
 
