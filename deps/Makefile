@@ -7,18 +7,18 @@
 #
 # This file is part of `AndorCameras.jl` released under the MIT license.
 #
-# Copyright (C) 2017, Éric Thiébaut.
+# Copyright (C) 2017-2019, Éric Thiébaut.
 #
 
 srcdir = .
 
 # Macros for compiling with Andor SDK
-AT_DIR = /usr/local
+AT_DIR = /usr/local/andor
 AT_LIBDIR = $(AT_DIR)/lib
 AT_INCDIR = $(AT_DIR)/include
 
 AT_DEFS =  -I$(AT_INCDIR)
-AT_DLL = libatcore.so
+AT_DLL = $(AT_DIR)/lib/libatcore.so
 AT_LIBS = -L$(AT_LIBDIR) -latcore
 
 PIC_FLAGS = -fPIC
