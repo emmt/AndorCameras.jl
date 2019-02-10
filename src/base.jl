@@ -145,7 +145,7 @@ end
 
 # Integer features:
 
-function Base.getindex(cam::Camera, key::IntegerFeature)
+function Base.getindex(cam::Camera, key::IntegerFeature) :: Int
     ref = Ref{AT_INT}()
     code = ccall((:AT_GetInt, _DLL), AT_STATUS,
                  (AT_HANDLE, AT_FEATURE, Ref{AT_INT}),
@@ -154,18 +154,15 @@ function Base.getindex(cam::Camera, key::IntegerFeature)
     return Int(ref[])
 end
 
-Base.setindex!(cam::Camera, val::Integer, key::IntegerFeature) =
-    setindex!(cam, AT_INT(val), key)
-
-function Base.setindex!(cam::Camera, val::AT_INT, key::IntegerFeature)
+function Base.setindex!(cam::Camera, val::Integer, key::IntegerFeature)
     code = ccall((:AT_SetInt, _DLL), AT_STATUS,
                  (AT_HANDLE, AT_FEATURE, AT_INT),
                  cam, key.name, val)
     _checkstatus(:AT_SetInt, code)
-    return nothing
+    return val
 end
 
-function Base.minimum(cam::Camera, key::IntegerFeature)
+function Base.minimum(cam::Camera, key::IntegerFeature) :: Int
     ref = Ref{AT_INT}()
     code = ccall((:AT_GetIntMin, _DLL), AT_STATUS,
                  (AT_HANDLE, AT_FEATURE, Ref{AT_INT}),
@@ -174,7 +171,7 @@ function Base.minimum(cam::Camera, key::IntegerFeature)
     return Int(ref[])
 end
 
-function Base.maximum(cam::Camera, key::IntegerFeature)
+function Base.maximum(cam::Camera, key::IntegerFeature) :: Int
     ref = Ref{AT_INT}()
     code = ccall((:AT_GetIntMax, _DLL), AT_STATUS,
                  (AT_HANDLE, AT_FEATURE, Ref{AT_INT}),
@@ -186,49 +183,46 @@ end
 
 # Floating-point features:
 
-function Base.getindex(cam::Camera, key::FloatingPointFeature)
+function Base.getindex(cam::Camera, key::FloatingPointFeature) :: Float64
     ref = Ref{AT_FLOAT}()
     code = ccall((:AT_GetFloat, _DLL), AT_STATUS,
                  (AT_HANDLE, AT_FEATURE, Ref{AT_FLOAT}),
                  cam, key.name, ref)
     _checkstatus(:AT_GetFloat, code)
-    return ref[]
+    return Float64(ref[])
 end
 
-Base.setindex!(cam::Camera, val::Real, key::FloatingPointFeature) =
-    setindex!(cam, convert(AT_FLOAT, val), key)
-
-function Base.setindex!(cam::Camera, val::AT_FLOAT,
+function Base.setindex!(cam::Camera, val::Real,
                         key::FloatingPointFeature)
     code = ccall((:AT_SetFloat, _DLL), AT_STATUS,
                  (AT_HANDLE, AT_FEATURE, AT_FLOAT),
                  cam, key.name, val)
     _checkstatus(:AT_SetFloat, code)
-    return nothing
+    return val
 end
 
-function Base.minimum(cam::Camera, key::FloatingPointFeature)
+function Base.minimum(cam::Camera, key::FloatingPointFeature) :: Float64
     ref = Ref{AT_FLOAT}()
     code = ccall((:AT_GetFloatMin, _DLL), AT_STATUS,
                  (AT_HANDLE, AT_FEATURE, Ref{AT_FLOAT}),
                  cam, key.name, ref)
     _checkstatus(:AT_GetFloatMin, code)
-    return ref[]
+    return Float64(ref[])
 end
 
-function Base.maximum(cam::Camera, key::FloatingPointFeature)
+function Base.maximum(cam::Camera, key::FloatingPointFeature) :: Float64
     ref = Ref{AT_FLOAT}()
     code = ccall((:AT_GetFloatMax, _DLL), AT_STATUS,
                  (AT_HANDLE, AT_FEATURE, Ref{AT_FLOAT}),
                  cam, key.name, ref)
     _checkstatus(:AT_GetFloatMax, code)
-    return ref[]
+    return Float64(ref[])
 end
 
 
 # Boolean features:
 
-function Base.getindex(cam::Camera, key::BooleanFeature)
+function Base.getindex(cam::Camera, key::BooleanFeature) :: Bool
     ref = Ref{AT_BOOL}()
     code = ccall((:AT_GetBool, _DLL), AT_STATUS,
                  (AT_HANDLE, AT_FEATURE, Ptr{AT_BOOL}),
@@ -242,13 +236,13 @@ function Base.setindex!(cam::Camera, val::Bool, key::BooleanFeature)
                  (AT_HANDLE, AT_FEATURE, AT_BOOL),
                  cam, key.name, (val ? AT_TRUE : AT_FALSE))
     _checkstatus(:AT_SetBool, code)
-    return nothing
+    return val
 end
 
 
 # String features:
 
-function Base.getindex(cam::Camera, key::StringFeature)
+function Base.getindex(cam::Camera, key::StringFeature) :: String
     ref = Ref{AT_LENGTH}()
     code = ccall((:AT_GetStringMaxLength, _DLL), AT_STATUS,
                  (AT_HANDLE, AT_FEATURE, Ref{AT_LENGTH}),
@@ -267,28 +261,22 @@ function Base.getindex(cam::Camera, key::StringFeature)
     return widestringtostring(buf)
 end
 
-Base.setindex!(cam::Camera, val::AbstractString, key::StringFeature) =
-    setindex!(cam, widestring(val), key)
-
-function Base.setindex!(cam::Camera, val::Vector{AT_CHAR},
+function Base.setindex!(cam::Camera, val::AbstractString,
                         key::StringFeature)
-    if length(val) < 1 || val[end] != zero(AT_CHAR)
-        error("invalid wide string value")
-    end
     code = ccall((:AT_SetString, _DLL), AT_STATUS,
                  (AT_HANDLE, AT_FEATURE, Ptr{AT_CHAR}),
-                 cam, key.name, val)
+                 cam, key.name, widestring(val))
     _checkstatus(:AT_SetString, code)
-    return nothing
+    return val
 end
 
 
 # Enumerated features:
 
-function Base.getindex(cam::Camera, key::EnumeratedFeature)
-    ref = Ref{Cint}()
+function Base.getindex(cam::Camera, key::EnumeratedFeature) :: Int
+    ref = Ref{AT_ENUM}()
     code = ccall((:AT_GetEnumIndex, _DLL), AT_STATUS,
-                 (AT_HANDLE, AT_FEATURE, Ptr{Cint}),
+                 (AT_HANDLE, AT_FEATURE, Ref{AT_ENUM}),
                  cam, key.name, ref)
     _checkstatus(:AT_GetEnumIndex, code)
     return Int(ref[]) + 1
@@ -296,31 +284,27 @@ end
 
 Base.minimum(cam::Camera, key::EnumeratedFeature) = 1
 
-function Base.maximum(cam::Camera, key::EnumeratedFeature)
-    ref = Ref{Cint}()
+function Base.maximum(cam::Camera, key::EnumeratedFeature) :: Int
+    ref = Ref{AT_LENGTH}()
     code = ccall((:AT_GetEnumCount, _DLL), AT_STATUS,
-                 (AT_HANDLE, AT_FEATURE, Ptr{Cint}),
+                 (AT_HANDLE, AT_FEATURE, Ref{AT_LENGTH}),
                  cam, key.name, ref)
     _checkstatus(:AT_GetEnumCount, code)
     return Int(ref[])
 end
 
-function isavailable(cam::Camera, key::EnumeratedFeature, index::Integer)
-    ref = Ref{Cint}()
-    code = ccall((:AT_IsEnumIndexAvailable, _DLL), AT_STATUS,
-                 (AT_HANDLE, AT_FEATURE, Cint, Ptr{Cint}),
+for (jfun, cfun) in ((:isavailable,   "AT_IsEnumIndexAvailable"),
+                     (:isimplemented, "AT_IsEnumIndexImplemented"))
+    @eval function $jfun(cam::Camera,
+                         key::EnumeratedFeature,
+                         index::Integer) :: Bool
+    ref = Ref{AT_BOOL}()
+    code = ccall(($cfun, _DLL), AT_STATUS,
+                 (AT_HANDLE, AT_FEATURE, AT_ENUM, Ref{AT_BOOL}),
                  cam, key.name, index - 1, ref)
-    _checkstatus(:AT_IsEnumIndexAvailable, code)
-    return (ref[] == AT_TRUE)
-end
-
-function isimplemented(cam::Camera, key::EnumeratedFeature, index::Integer)
-    ref = Ref{Cint}()
-    code = ccall((:AT_IsEnumIndexImplemented, _DLL), AT_STATUS,
-                 (AT_HANDLE, AT_FEATURE, Cint, Ptr{Cint}),
-                 cam, key.name, index - 1, ref)
-    _checkstatus(:AT_IsEnumIndexImplemented, code)
-    return (ref[] == AT_TRUE)
+        _checkstatus($cfun, code)
+        return (ref[] == AT_TRUE)
+    end
 end
 
 Base.repr(cam::Camera, key::EnumeratedFeature) =
@@ -330,34 +314,28 @@ function Base.repr(cam::Camera, key::EnumeratedFeature, index::Integer)
     num = 64
     buf = Vector{AT_CHAR}(undef, num)
     code = ccall((:AT_GetEnumStringByIndex, _DLL), AT_STATUS,
-                 (AT_HANDLE, AT_FEATURE, Cint, Ptr{AT_CHAR}, Cint),
+                 (AT_HANDLE, AT_FEATURE, AT_ENUM, Ptr{AT_CHAR}, AT_LENGTH),
                  cam, key.name, index - 1, buf, num)
     _checkstatus(:AT_GetEnumStringByIndex, code)
     buf[num] = zero(AT_CHAR)
     return widestringtostring(buf)
 end
 
-Base.setindex!(cam::Camera, val::AbstractString, key::EnumeratedFeature) =
-    setindex!(cam, widestring(val), key)
-
-function Base.setindex!(cam::Camera, val::Vector{AT_CHAR},
+function Base.setindex!(cam::Camera, val::AbstractString,
                         key::EnumeratedFeature)
-    if length(val) < 1 || val[end] != zero(AT_CHAR)
-        error("invalid wide string value")
-    end
     code = ccall((:AT_SetEnumString, _DLL), AT_STATUS,
                  (AT_HANDLE, AT_FEATURE, Ptr{AT_CHAR}),
-                 cam, key.name, val)
+                 cam, key.name, widestring(val))
     _checkstatus(:AT_SetEnumString, code)
-    return nothing
+    return val
 end
 
 function Base.setindex!(cam::Camera, val::Integer, key::EnumeratedFeature)
     code = ccall((:AT_SetEnumIndex, _DLL), AT_STATUS,
-                 (AT_HANDLE, AT_FEATURE, Cint),
-                 cam, key.name, val + 1)
+                 (AT_HANDLE, AT_FEATURE, AT_ENUM),
+                 cam, key.name, val - 1)
     _checkstatus(:AT_SetEnumIndex, code)
-    return nothing
+    return val
 end
 
 
