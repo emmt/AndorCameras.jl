@@ -43,7 +43,7 @@ function widestring(str::AbstractString,
         if i ≥ len
             break
         end
-        c != '\0' || error("string must not have embedded NULL characters")
+        c != '\0' || error("strings must not have embedded NULL characters")
         i += 1
         buf[i] = c
     end
@@ -56,13 +56,16 @@ end
 
 widestring(sym::Symbol) = widestring(string(sym))
 
-function widestringtostring(C::Array{AT_CHAR}) :: String
-    buf = Char[]
-    @inbounds for c in C
-        if c == zero(AT_CHAR)
-            break
-        end
-        push!(buf, convert(Char, c))
+function widestringtostring(arr::Array{AT_CHAR}) :: String
+    len = length(arr)
+    @inbounds while len > 0 && arr[len] == zero(AT_CHAR)
+        len -= 1
+    end
+    buf = Vector{Char}(undef, len)
+    @inbounds for i in 1:len
+        c = arr[i]
+        c != zero(AT_CHAR) || error("strings must not have embedded NULL characters")
+        buf[i] = c
     end
     return String(buf)
 end
