@@ -15,6 +15,12 @@
 #include <stdint.h>
 #include <wchar.h>
 #include <atcore.h>
+#ifdef __linux__
+# include <fcntl.h>
+# include <errno.h>
+# include <sys/ioctl.h>
+# include <linux/usbdevice_fs.h>
+#endif
 
 #if 0
 /* Define a constant. */
@@ -243,6 +249,10 @@ int main(int argc, char* argv[])
 #endif
 #ifdef AT_HANDLE_SYSTEM
   DEF_CONST(AT_HANDLE_SYSTEM, " = AT_HANDLE(%d)");
+#endif
+#ifdef __linux__
+  DEF_CONST(USBDEVFS_RESET, " = %u # ioctl() request to reset USB device");
+  DEF_CONST(O_WRONLY, " = %u");
 #endif
 
   return 0;

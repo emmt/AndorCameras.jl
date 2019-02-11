@@ -55,11 +55,9 @@ export
 EOF
 
 # First pass to generate list of exported symbols.
-sed -n -r <"$INP" >>"$OUT" \
-    -e 's/[ \t]+/ /g' \
-    -e '/^ *const AT_/!d' \
-    -e 's/^ *const (AT_[_A-Z0-9]*).*/    \1,/' \
-    -e 'H' \
+sed -n <"$INP" >>"$OUT" \
+    -e 's/[ \t][ \t]*/ /g' \
+    -e '/^ *const AT_/{s/^ *const \(AT_[_A-Z0-9]*\).*/    \1,/;H}' \
     -e '${x;s/^[ \n]*/    /;s/,[ \n]*$//;p}'
 
 # Second and third passes to generate code and definitions.
@@ -67,11 +65,11 @@ cat >>"$OUT" <<'EOF'
 
 # Constants.
 EOF
-grep <"$INP" >>"$OUT" '^ *const AT_'
+grep <"$INP" >>"$OUT" '^ *const  *AT_'
 cat >>"$OUT" <<'EOF'
 
 end # module Constants
 
-# Dynamic library.
+# Dynamic library and other constants.
 EOF
-grep <"$INP" >>"$OUT" '^ *const _DLL'
+grep <"$INP" >>"$OUT" -v '^ *const  *AT_'
