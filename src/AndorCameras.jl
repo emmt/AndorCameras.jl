@@ -10,12 +10,13 @@
 # Copyright (C) 2017-2019, Éric Thiébaut.
 #
 
-isdefined(Base, :__precompile__) && __precompile__(true)
+__precompile__(true)
 
 module AndorCameras
 
 export
-    AndorError
+    AndorError,
+    send
 
 # Import `ScientificCameras` methods in such a way that they can be extended in
 # this module and re-export them to make things easier for the end-user.
