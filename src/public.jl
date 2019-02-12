@@ -186,7 +186,7 @@ function supportedpixelformats(cam::Camera)
 end
 
 getpixelformat(cam::Camera) =
-    _PIXEL_ENCODING_TYPES[repr(cam, PixelEncoding)]
+    get(_PIXEL_ENCODING_TYPES, repr(cam, PixelEncoding), Nothing)
 
 function setpixelformat!(cam::Camera, ::Type{T}) where {T<:PixelFormat}
     checkstate(cam, 1, true)
@@ -242,7 +242,7 @@ const METADATA_SIZE = (LENGTH_FIELD_SIZE + CID_FIELD_SIZE
 # Extend method.
 function getcapturebitstype(cam::Camera)
     T = equivalentbitstype(getpixelformat(cam))
-    return (T == Void ? AT_BYTE : T)
+    return (T == Nothing ? AT_BYTE : T)
 end
 
 # Extend method.
