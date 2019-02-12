@@ -38,6 +38,8 @@ mutable struct Camera <: ScientificCamera
                    0, 0, false, AT_HANDLE_UNINITIALISED)
 end
 
+const AndorCamera = Camera
+
 # A bit of magic for ccall.
 Base.cconvert(::Type{AT_HANDLE}, cam::Camera) = cam.handle
 

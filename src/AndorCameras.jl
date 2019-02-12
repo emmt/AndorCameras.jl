@@ -15,6 +15,7 @@ __precompile__(true)
 module AndorCameras
 
 export
+    AndorCamera,
     AndorError,
     send
 
