@@ -1,0 +1,6 @@
+#! /bin/sh
+n="[0-9][0-9]*"
+lsusb | sed -n -e "/^ *Bus *$n *Device *$n.*Andor.*Zyla/{
+    s,^ *Bus *\($n\) *Device *\($n\).*Andor.*Zyla.*,/dev/bus/usb/\1/\2,
+    p
+}"

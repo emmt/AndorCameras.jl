@@ -486,3 +486,61 @@ function extractmono12packed!(dst::Array{T,2},
     end
     return dst
 end
+
+"""
+   syserrorinfo(code=Libc.errno())
+
+yields the error message associated with `code`.
+
+"""
+syserrorinfo(code::Integer = Libc.errno()) =
+    (Int(code), Libc.strerror(code))
+
+"""
+   reset_usb(dev)
+
+resets USB device `dev`.
+
+"""
+reset_usb
+@static if Sys.islinux()
+    function reset_usb(dev::AbstractString)
+        fd = ccall(:open, Cint, (Cstring, Cint), dev, O_WRONLY)
+        if fd == -1
+            code, mesg = syserrorinfo()
+            error("can't open USB device '$dev' for writing: $mesg (errno=$code)")
+        end
+        try
+            if ccall(:ioctl, Cint, (Cint, Culong, Cint),
+                     fd, USBDEVFS_RESET, 0) == -1
+                code, mesg = syserrorinfo()
+                error("can't reset USB device '$dev': $mesg (errno=$code)")
+            end
+        finally
+            if ccall(:close, Cint, (Cint,), fd) == -1
+                code, mesg = syserrorinfo()
+                @warn "failed to close USB device '$dev': $mesg (errno=$code)"
+            end
+        end
+        nothing
+    end
+else
+    function reset_usb(dev::AbstractString)
+        @warn "don't know how to reset USB device '$dev' for your machine"
+        nothing
+    end
+end
+
+const _find_zyla_path = joinpath(@__DIR__, "..", "deps", "find-zyla")
+const _find_zyla_proc = `$_find_zyla_path`
+
+find_zyla() = open(_find_zyla_proc, "r") do io; readline(io); end
+
+function reset_zyla()
+    dev = find_zyla()
+    if dev == ""
+        @warn "No Andor Zyla cameras found on USB bus."
+    else
+        reset_usb(dev)
+    end
+end
