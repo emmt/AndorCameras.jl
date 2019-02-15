@@ -248,13 +248,13 @@ end
 # Extend method.
 function read(cam::Camera, ::Type{T}, num::Int;
               skip::Integer = 0,
-              timeout::Real = defaulttimeout(cam, num + skip),
+              timeout::Real = defaulttimeout(cam),
               truncate::Bool = false,
               quiet::Bool = false) where {T}
 
-    # Final time (in seconds).
-    timeout > zero(timeout) || error("invalid timeout")
-    final = time() + Float64(timeout)
+    # Check timeout and convert it in milliseconds.
+    timeout > 0 || error("invalid timeout")
+    timeout_ms = round(AT_MSEC, timeout*1_000)
 
     # Allocate vector of images.
     imgs = Vector{Array{T,2}}(undef, num)
@@ -266,8 +266,7 @@ function read(cam::Camera, ::Type{T}, num::Int;
     cnt = 0
     while cnt < num
         try
-            _wait(cam, round(AT_MSEC, max(final - time(), 0.0)*1E3),
-                  skip > zero(skip))
+            _wait(cam, timeout_ms, skip > 0)
         catch err
             if truncate && isa(err, TimeoutError)
                 quiet || @warn "acquisition timeout after $cnt image(s)" # FIXME:
@@ -293,11 +292,11 @@ end
 
 function read(cam::Camera, ::Type{T};
               skip::Integer = 0,
-              timeout::Real = defaulttimeout(cam, 1 + skip)) where {T}
+              timeout::Real = defaulttimeout(cam)) where {T}
 
-    # Final time (in seconds).
-    timeout > zero(timeout) || error("invalid timeout")
-    final = time() + Float64(timeout)
+    # Check timeout and convert it in milliseconds.
+    timeout > 0 || error("invalid timeout")
+    timeout_ms = round(AT_MSEC, timeout*1_000)
 
     # Start the acquisition.
     start(cam, T, 2)
@@ -305,8 +304,7 @@ function read(cam::Camera, ::Type{T};
     # Acquire all images.
     while true
         try
-            _wait(cam, round(AT_MSEC, max(final - time(), 0.0)*1E3),
-                  skip > zero(skip))
+            _wait(cam, timeout_ms, skip > 0)
         catch err
             abort(cam)
             rethrow(err)
