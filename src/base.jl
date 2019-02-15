@@ -531,16 +531,30 @@ else
     end
 end
 
+"""
+    find_zyla()
+
+yields the name of the USB device to which the Andor Zyla camera is connected.
+An empty string is returned if no connected Andor Zyla cameras is found.
+
+"""
+find_zyla() = open(_find_zyla_proc, "r") do io; readline(io); end
 const _find_zyla_path = joinpath(@__DIR__, "..", "deps", "find-zyla")
 const _find_zyla_proc = `$_find_zyla_path`
 
-find_zyla() = open(_find_zyla_proc, "r") do io; readline(io); end
+"""
+    reset_zyla(;quiet=false)
 
-function reset_zyla()
+resets the USB device to which the Andor Zyla camera is connected.  If keyword
+`quiet` is true, no warning is printed if no connected Andor Zyla cameras is
+found.
+
+"""
+function reset_zyla(;quiet::Bool=false)
     dev = find_zyla()
-    if dev == ""
-        @warn "No Andor Zyla cameras found on USB bus."
-    else
+    if dev != ""
         reset_usb(dev)
+    elseif !quiet
+        @warn "No Andor Zyla cameras found on USB bus."
     end
 end
