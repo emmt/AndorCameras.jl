@@ -558,3 +558,38 @@ function reset_zyla(;quiet::Bool=false)
         @warn "No Andor Zyla cameras found on USB bus."
     end
 end
+
+"""
+    read_zyla(cam, T; reset=0, maxresets=10)
+
+reads one image from the Ando Zyla camera `cam`.
+
+If 1st bit of keyword `reset` is set, then the USB device to which the Andor
+Zyla camera is attached is reset prior to trying to read an image.  If 2nd bit
+of of keyword `reset` is set, then the USB device is reset if a timeout
+exception occurs while reading the camera and a new attempt to read an image is
+performed.  Keyword `maxresets` specifies the maximum number of resets.
+
+"""
+function read_zyla(cam::Camera, ::Type{T};
+                   reset::Integer = 0,
+                   maxresets::Integer = 10,
+                   kwds...) where {T}
+    nresets = 0
+    if (reset & 2) != 0 && nresets < maxresets
+        reset_zyla()
+        nresets += 1
+    end
+    while true
+        try
+            return read(cam, args...; kwds...)
+        catch err
+            if (reset & 1) != 0 && nresets < maxresets && isa(err, TimeoutError)
+                reset_zyla()
+                nresets += 1
+            else
+                rethrow(err)
+            end
+        end
+    end
+end
