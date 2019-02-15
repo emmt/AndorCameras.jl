@@ -560,7 +560,8 @@ function reset_zyla(;quiet::Bool=false)
 end
 
 """
-    read_zyla(cam, T; reset=0, maxresets=10)
+    read_zyla(cam, T=getcapturebitstype(cam);
+              reset=0, maxresets=10, ...)
 
 reads one image from the Ando Zyla camera `cam`.
 
@@ -571,20 +572,20 @@ exception occurs while reading the camera and a new attempt to read an image is
 performed.  Keyword `maxresets` specifies the maximum number of resets.
 
 """
-function read_zyla(cam::Camera, ::Type{T};
+function read_zyla(cam::Camera, ::Type{T} = getcapturebitstype(cam);
                    reset::Integer = 0,
                    maxresets::Integer = 10,
                    kwds...) where {T}
     nresets = 0
-    if (reset & 2) != 0 && nresets < maxresets
+    if (reset & 1) != 0 && nresets < maxresets
         reset_zyla()
         nresets += 1
     end
     while true
         try
-            return read(cam, args...; kwds...)
+            return read(cam, T; kwds...)
         catch err
-            if (reset & 1) != 0 && nresets < maxresets && isa(err, TimeoutError)
+            if (reset & 2) != 0 && nresets < maxresets && isa(err, TimeoutError)
                 reset_zyla()
                 nresets += 1
             else
