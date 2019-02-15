@@ -21,23 +21,29 @@ AT_DEFS =  -I$(AT_INCDIR)
 AT_DLL = $(AT_DIR)/lib/libatcore.so
 AT_LIBS = -L$(AT_LIBDIR) -latcore
 
+USB_DEFS =
+USB_LIBS = -lusb
+
 PIC_FLAGS = -fPIC
 CC = gcc
 CPPFLAGS = -I.
 CFLAGS = -O2 -Wall
 LDFLAGS =
 
-default: all
+default: $(srcdir)/../src/constants.jl
 
 clean:
 	rm -f *~ *.o gencode gencode.out
 
-all: $(srcdir)/../src/constants.jl
+all: $(srcdir)/../src/constants.jl reset-zyla
 
 $(srcdir)/../src/constants.jl: gencode.out gencode.sh
 	rm -f "$@"
 	./gencode.sh gencode.out "$@"
 	chmod a-w "$@"
+
+reset-zyla: $(srcdir)/reset-zyla.c
+	$(CC) $(CPPFLAGS) $(USB_DEFS) $(CFLAGS) $< -o $@  $(USB_LIBS)
 
 gencode.out: gencode
 	./gencode >gencode.out
