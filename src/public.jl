@@ -254,7 +254,8 @@ function read(cam::Camera, ::Type{T}, num::Int;
 
     # Check timeout and convert it in milliseconds.
     timeout > 0 || error("invalid timeout")
-    timeout_ms = round(AT_MSEC, timeout*1_000)
+    timeout_ms = (timeout ≥ Inf ? AT_INFINITE :
+                  round(AT_MSEC, timeout*1_000))
 
     # Allocate vector of images.
     imgs = Vector{Array{T,2}}(undef, num)
