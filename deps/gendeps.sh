@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# gencode.sh --
+# gendeps.sh --
 #
 # Bash script to generate Julia contants for Andor cameras.
 #
@@ -26,7 +26,7 @@ fi
 # Generate header.
 cat >"$OUT" <<'EOF'
 #
-# constants.jl --
+# deps.jl --
 #
 # Definitions of types and constants for interfacing Andor cameras in Julia.
 #
@@ -69,6 +69,8 @@ grep <"$INP" >>"$OUT" '^ *const  *AT_'
 cat >>"$OUT" <<'EOF'
 
 end # module Constants
+
+using .Constants
 
 # Dynamic library and other constants.
 EOF

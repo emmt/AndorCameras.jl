@@ -36,8 +36,10 @@ import ScientificCameras: TimeoutError, ScientificCamera, ROI
 using Printf
 import Sockets: send
 
-include("constants.jl")
-using .Constants
+isfile(joinpath(@__DIR__,"..","deps","deps.jl")) ||
+    error("Tcl not properly installed.  Please run `Pkg.build(\"Tcl\")` to create file \"",joinpath(@__DIR__,"..","deps","deps.jl"),"\"")
+
+include("../deps/deps.jl")
 include("types.jl")
 include("errors.jl")
 include("strings.jl")

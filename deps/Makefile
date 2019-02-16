@@ -30,24 +30,24 @@ CPPFLAGS = -I.
 CFLAGS = -O2 -Wall
 LDFLAGS =
 
-default: $(srcdir)/../src/constants.jl
+default: deps.jl
 
 clean:
-	rm -f *~ *.o gencode gencode.out
+	rm -f *~ *.o genconst genconst.out
 
-all: $(srcdir)/../src/constants.jl reset-zyla
+all: deps.jl reset-zyla
 
-$(srcdir)/../src/constants.jl: gencode.out gencode.sh
+deps.jl: genconst.out gendeps.sh
 	rm -f "$@"
-	./gencode.sh gencode.out "$@"
+	./gendeps.sh genconst.out "$@"
 	chmod a-w "$@"
 
 reset-zyla: $(srcdir)/reset-zyla.c
 	$(CC) $(CPPFLAGS) $(USB_DEFS) $(CFLAGS) $< -o $@  $(USB_LIBS)
 
-gencode.out: gencode
-	./gencode >gencode.out
+genconst.out: genconst
+	./genconst >genconst.out
 
-gencode: gencode.c Makefile
+genconst: genconst.c Makefile
 	$(CC) $(CPPFLAGS) $(AT_DEFS) $(CFLAGS) \
 	    -DAT_DLL=\"$(AT_DLL)\" $< -o $@

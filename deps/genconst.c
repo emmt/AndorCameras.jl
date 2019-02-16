@@ -1,5 +1,5 @@
 /*
- * gencode.c --
+ * genconst.c --
  *
  * Generate definitions of types and constants for interfacing Andor (SDK)
  * with Julia.
