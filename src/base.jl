@@ -87,12 +87,16 @@ function _command(cam::Camera, cmd::CommandFeature, throwerrors::Bool = false)
     code = ccall((:AT_Command, _DLL), AT_STATUS,
                  (AT_HANDLE, AT_FEATURE),
                  cam, cmd.name)
-    throwerrors && code != AT_SUCCESS && throw(AndorError(:AT_Command, code))
-    nothing
+    if code != AT_SUCCESS
+      @warn "AT_Command error on: cmd.name"  
+    end
+    #throwerrors && code != AT_SUCCESS && throw(AndorError(:AT_Command, code))
+    #nothing
 end
 
 _stop(cam::Camera, throwerrors::Bool = false) =
-    _command(cam, AcquisitionStop, throwerrors)
+(cam[CameraModel] != "SIMCAM CMOS" && 
+    _command(cam, AcquisitionStop, throwerrors))
 
 
 """
@@ -439,6 +443,13 @@ function extract!(dst::Array{T,2},
         end
     end
     return dst
+end
+
+function extract!(dst::Array{T,2},
+                  ptr::Ptr{UInt8}, siz::Integer,
+                  bytesperline::Int) where {T}
+    return extract!(dst, unsafe_wrap(Array, ptr, siz; own=false),
+                    bytesperline)
 end
 
 @inline function extractlowpacked(::Type{T},
