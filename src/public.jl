@@ -29,8 +29,9 @@ function stop(cam::Camera)
         return nothing
     end
     _stop(cam, true)
-    _flush(cam, true)
+    #_flush(cam, true)		..Done in start()
     cam.state = 1
+
     return nothing
 end
 
@@ -203,14 +204,11 @@ getspeed(cam::Camera) =
     (cam[FrameRate], cam[ExposureTime])
 
 function setspeed!(cam::Camera, fps::Float64, exp::Float64)
-    if cam[FrameRate] > fps
+    if cam[FrameRate] != fps
         cam[FrameRate] = fps
     end
     if cam[ExposureTime] != exp
         cam[ExposureTime] = exp
-    end
-    if cam[FrameRate] < fps
-        cam[FrameRate] = fps
     end
     return nothing
 end
@@ -261,13 +259,13 @@ function read(cam::Camera, ::Type{T}, num::Int;
     imgs = Vector{Array{T,2}}(undef, num)
 
     # Start the acquisition.
-    start(cam, T, 4)
+    start(cam, T, 1)    # ... :-) (bg)
 
     # Acquire all images.
     cnt = 0
     while cnt < num
         try
-            _wait(cam, timeout_ms, skip > 0)
+           @time _wait(cam, timeout_ms, skip > 0)
         catch err
             if truncate && isa(err, TimeoutError)
                 quiet || @warn "acquisition timeout after $cnt image(s)" # FIXME:
@@ -300,7 +298,7 @@ function read(cam::Camera, ::Type{T};
     timeout_ms = round(AT_MSEC, timeout*1_000)
 
     # Start the acquisition.
-    start(cam, T, 2)
+    start(cam, T, 1)        # :-) ... (bg)
 
     # Acquire all images.
     while true
@@ -332,7 +330,8 @@ function start(cam::Camera, ::Type{T}, nbufs::Int) where {T}
     end
 
     # Make sure no buffers are currently in use.
-    _flush(cam, true)
+	print("Flushing...")    
+	_flush(cam, true)
 
     # Turn on metadata (this must be done before getting the frame size).
     if (isimplemented(cam, MetadataEnable) &&
@@ -364,7 +363,7 @@ function start(cam::Camera, ::Type{T}, nbufs::Int) where {T}
             throw(AndorError(:AT_QueueBuffer, code))
         end
     end
-
+    println("allocated ",nbufs," buffer(s)")
     # Allocate array to store last image.
     width = (isimplemented(cam, AOIWidth) ? cam[AOIWidth]
              : cam[SensorWidth])
@@ -377,7 +376,7 @@ function start(cam::Camera, ::Type{T}, nbufs::Int) where {T}
     if isimplemented(cam, AOIStride)
         cam.bytesperline = cam[AOIStride]
         if cam.bytesperline != stride
-            @warn("computed stride ($(stride) bytes) is not equal to ",
+            @warn("computed stride ($(stride) bytes) is not equal to "*
                   "AOIStride ($(cam.bytesperline) bytes)")
         end
     else
@@ -385,12 +384,13 @@ function start(cam::Camera, ::Type{T}, nbufs::Int) where {T}
     end
 
     # Set the camera to continuously acquires frames.
-    cam[CycleMode] = "Continuous"
+     cam[CycleMode] = "Continuous"
+     cam[TriggerMode]="Internal"        # ... better (bg)
 
     # Start the acquisition.
     send(cam, AcquisitionStart)
     cam.state = 2
-
+ 
     return nothing
 end
 
@@ -410,28 +410,41 @@ end
 function _wait(cam::Camera, ms::Integer, skip::Bool)
     # Check arguments.
     checkstate(cam, 2, true)
-
+    
     # Sleep in this thread until data is ready.  Note that the timeout argument
     # is pretended to be `Cint` because `AT_INFINITE` is `-1` whereas it is
     # `Cuint`.  This limits the maximum allowed timeout to about 24.9 days
     # which should be sufficient!
     refptr = Ref{Ptr{AT_BYTE}}()
     refsiz = Ref{AT_LENGTH}()
+
+    FrR=min(cam[FrameRate],45);         # ... nonlinear timeout (bof...)
+    ms=UInt32(round(5/FrR*1000));       # ... better (bg)
+    
     code = ccall((:AT_WaitBuffer, _DLL), AT_STATUS,
                  (AT_HANDLE, Ref{Ptr{AT_BYTE}}, Ref{AT_LENGTH}, AT_MSEC),
                  cam, refptr, refsiz, ms)
-    if code != AT_SUCCESS
-        if code == AT_ERR_TIMEDOUT
-            throw(TimeoutError())
+   
+        if code != 0
+            #throw(TimeoutError())
+            @warn "Timeout ...(restarting)"
+		if cam[CameraModel] =="ZYLA-4.2P-USB3"
+			run(`/usr/local/bin/resetAndor`);
+		end
+            send(cam, AcquisitionStop);
+            send(cam, AcquisitionStart);
         else
-            throw(AndorError(:AT_WaitBuffer, code))
+           ptr = refptr[]
+           framesize = Int(refsiz[])
+           extract!(cam.lastimg,refptr[], refsiz[], cam.bytesperline)
+           code = ccall((:AT_QueueBuffer, _DLL), AT_STATUS,
+               (AT_HANDLE, Ptr{AT_BYTE}, AT_LENGTH),
+                           cam, refptr[] , refsiz[]);    
         end
-    end
-    ptr = refptr[]
-    framesize = Int(refsiz[])
-
+   
+    
     # Get the timestamp.
-    local ticks::Float64
+    #local ticks::Float64
     if cam.clockfrequency > 0
         tickscnt = unsafe_load(Ptr{UInt64}(ptr + framesize - METADATA_SIZE))
         if ENDIAN_BOM == 0x01020304
@@ -443,28 +456,29 @@ function _wait(cam::Camera, ms::Integer, skip::Bool)
     end
 
     # Find buffer index.
-    for buf in cam.bufs
-        if pointer(buf) == ptr
-            # Extract buffer data and requeue buffer.
-            if ! skip
-                if cam.mono12packed
-                    extractmono12packed!(cam.lastimg, buf, cam.bytesperline)
-                else
-                    extract!(cam.lastimg, buf, cam.bytesperline)
-                end
-            end
-            code = ccall((:AT_QueueBuffer, _DLL), AT_STATUS,
-                         (AT_HANDLE, Ptr{AT_BYTE}, AT_LENGTH),
-                         cam, buf, framesize)
-            if code != AT_SUCCESS
-                # Stop acquisition and report error.
-                _stop(cam, false)
-                _flush(cam, false)
-                cam.state = 1
-                throw(AndorError(:AT_QueueBuffer, code))
-            end
-            return ticks
-        end
-    end
-    error("bad buffer address")
+    #for buf in cam.bufs
+    #    if pointer(buf) == ptr
+    #        # Extract buffer data and requeue buffer.
+    #        if ! skip
+    #            if cam.mono12packed
+    #                extractmono12packed!(cam.lastimg, buf, cam.bytesperline)
+    #            else
+    #                extract!(cam.lastimg, buf, cam.bytesperline)
+    #            end
+    #        end
+    #        code = ccall((:AT_QueueBuffer, _DLL), AT_STATUS,
+    #                     (AT_HANDLE, Ptr{AT_BYTE}, AT_LENGTH),
+    #                      cam, refptr.x, refsiz.x);
+    #        #             cam, buf, framesize)
+    #        if code != AT_SUCCESS
+    #            # Stop acquisition and report error.
+    #            _stop(cam, false)
+    #            _flush(cam, false)
+    #            cam.state = 1
+    #            throw(AndorError(:AT_QueueBuffer, code))
+    #        end
+    #        return ticks
+    #    end
+    #end
+    #error("bad buffer address")
 end
