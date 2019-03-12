@@ -256,9 +256,10 @@ function getcapturebitstype(cam::Camera)
 end
 
 # Check timeout and convert it in milliseconds.
-function timeout2ms(timeout::Real)
-    timeout > 0 || throw(ArgumentError("invalid timeout"))
-    return (timeout ≥ Inf ? AT.INFINITE : round(AT.MSEC, timeout*1_000))
+function timeout2ms(sec::Real)
+    sec > 0 || throw(ArgumentError("invalid timeout"))
+    msec = sec*1_000
+    return (msec > typemax(AT.MSEC) ? AT.INFINITE : round(AT.MSEC, msec))
 end
 
 @noinline _warntimeout(cnt::Integer) =
@@ -435,8 +436,7 @@ end
 
 # Extend method.
 function wait(cam::Camera, sec::Float64 = 0.0)
-    ms = (sec ≥ typemax(AT.MSEC) ? AT.INFINITE : round(AT.MSEC, sec*1_000))
-    ticks = _wait(cam, ms, false)
+    ticks = _wait(cam, timeout2ms(sec), false)
     return cam.lastimg, ticks
 end
 
