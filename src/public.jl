@@ -400,12 +400,11 @@ function start(cam::Camera, ::Type{T}, nbufs::Int) where {T}
         if ! isassigned(cam.bufs, i) || sizeof(cam.bufs[i]) != framesize
             cam.bufs[i] = Vector{AT_BYTE}(undef, framesize)
         end
-        code = ccall((:AT_QueueBuffer, _DLL), AT_STATUS,
-                     (AT_HANDLE, Ptr{AT_BYTE}, AT_LENGTH),
-                     cam, cam.bufs[i], framesize)
-        if code != AT_SUCCESS
+        try
+            _queuebuffer(cam, cam.bufs[i], true)
+        catch err
             _flush(cam, false)
-            throw(AndorError(:AT_QueueBuffer, code))
+            rethrow(err)
         end
     end
 
@@ -459,11 +458,11 @@ function _wait(cam::Camera, ms::Integer, skip::Bool=false, quiet::Bool=false)
     # is pretended to be `Cint` because `AT_INFINITE` is `-1` whereas it is
     # `Cuint`.  This limits the maximum allowed timeout to about 24.9 days
     # which should be sufficient!
-    refptr = Ref{Ptr{AT_BYTE}}()
-    refsiz = Ref{AT_LENGTH}()
+    refbufptr = Ref{Ptr{AT_BYTE}}()
+    refbufsiz = Ref{AT_LENGTH}()
     code = ccall((:AT_WaitBuffer, _DLL), AT_STATUS,
                  (AT_HANDLE, Ref{Ptr{AT_BYTE}}, Ref{AT_LENGTH}, AT_MSEC),
-                 cam, refptr, refsiz, ms)
+                 cam, refbufptr, refbufsiz, ms)
     if code != AT_SUCCESS
         code == AT_ERR_TIMEDOUT || throw(AndorError(:AT_WaitBuffer, code))
         if cam.model == _ZYLA_USB_MODEL
@@ -479,19 +478,14 @@ function _wait(cam::Camera, ms::Integer, skip::Bool=false, quiet::Bool=false)
             end
         end
         throw(TimeoutError())
-     else
-        ptr = refptr[]
-        framesize = Int(refsiz[])
-        extract!(cam.lastimg,refptr[], refsiz[], cam.bytesperline)
-        code = ccall((:AT_QueueBuffer, _DLL), AT_STATUS,
-                     (AT_HANDLE, Ptr{AT_BYTE}, AT_LENGTH),
-                     cam, refptr[] , refsiz[]);
     end
+    bufptr = refbufptr[]
+    bufsiz = Int(refbufsiz[])
 
     # Get the timestamp.
     local ticks::Float64 # to enforce type stability
     if cam.clockfrequency > 0
-        tickscnt = unsafe_load(Ptr{UInt64}(ptr + framesize - METADATA_SIZE))
+        tickscnt = unsafe_load(Ptr{UInt64}(bufptr + bufsiz - METADATA_SIZE))
         if ENDIAN_BOM == 0x01020304
             tickscnt = bswap(tickscnt)
         end
@@ -501,29 +495,27 @@ function _wait(cam::Camera, ms::Integer, skip::Bool=false, quiet::Bool=false)
     end
 
     # Find buffer index.
-    #for buf in cam.bufs
-    #    if pointer(buf) == ptr
-    #        # Extract buffer data and requeue buffer.
-    #        if ! skip
-    #            if cam.mono12packed
-    #                extractmono12packed!(cam.lastimg, buf, cam.bytesperline)
-    #            else
-    #                extract!(cam.lastimg, buf, cam.bytesperline)
-    #            end
-    #        end
-    #        code = ccall((:AT_QueueBuffer, _DLL), AT_STATUS,
-    #                     (AT_HANDLE, Ptr{AT_BYTE}, AT_LENGTH),
-    #                      cam, refptr.x, refsiz.x);
-    #        #             cam, buf, framesize)
-    #        if code != AT_SUCCESS
-    #            # Stop acquisition and report error.
-    #            _stop(cam, false)
-    #            _flush(cam, false)
-    #            cam.state = 1
-    #            throw(AndorError(:AT_QueueBuffer, code))
-    #        end
-    #        return ticks
-    #    end
-    #end
-    #error("bad buffer address")
+    for buf in cam.bufs
+        if pointer(buf) == bufptr
+            # Extract buffer data and requeue buffer.
+            if ! skip
+                if cam.mono12packed
+                    extractmono12packed!(cam.lastimg, buf, cam.bytesperline)
+                else
+                    extract!(cam.lastimg, buf, cam.bytesperline)
+                end
+            end
+            try
+                _queuebuffer(cam, bufptr, bufsiz, true)
+            catch err
+                # Stop acquisition and report error.
+                _stop(cam, false)
+                _flush(cam, false)
+                cam.state = 1
+                rethrow(err)
+            end
+            return ticks
+        end
+    end
+    error("bad buffer address")
 end

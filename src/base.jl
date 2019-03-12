@@ -111,6 +111,55 @@ the documentation of Andor SDK.
 issimcam(cam::Camera) = (cam.model == _SIM_CAM_MODEL)
 
 """
+
+```julia
+_queuebuffer(cam, buf, throwerrors=false) -> code
+```
+
+or
+
+```julia
+_queuebuffer(cam, ptr, siz, throwerrors=false) -> code
+```
+
+configure the area of memory into which acquired images will be stored for
+Andor camera `cam`.  The buffer to queue can be specified as a vector `buf` of
+bytes (`AT_BYTE`) or as a pointer `ptr` and a number of bytes `siz`.  If
+`throwerrors` is true, an `AndorError` exception is automatically thrown in
+case of error; otherwise, any other returned value than `AT_SUCCESS` indicates
+an error.
+
+This method may be called multiple times to set up storage for consecutive
+images in a series.  The order in which buffers are queued is the order in
+which they will be used on a first in, first out (FIFO) basis.  The size of
+each queued buffer should be equal to the size of an individual image in number
+of bytes (as given by the value of attribute `ImageSizeBytes`).  This method
+may be called before the acquisition starts, after the acquisition starts or a
+combination of the two.  Any queued buffers queued should not be modified or
+deallocated until they are either returned from the `AT_WaitBuffer` function,
+or the `_flush` method is called.
+
+"""
+function _queuebuffer(cam::Camera,
+                      buf::DenseArray{AT_BYTE},
+                      throwerrors::Bool = false)
+    return _queuebuffer(cam, pointer(buf), sizeof(buf), throwerrors)
+end
+
+function _queuebuffer(cam::Camera,
+                      buf::Ptr{AT_BYTE},
+                      siz::Integer,
+                      throwerrors::Bool = false)
+    code = ccall((:AT_QueueBuffer, _DLL), AT_STATUS,
+                 (AT_HANDLE, Ptr{AT_BYTE}, AT_LENGTH),
+                 cam, buf, siz)
+    throwerrors && code != AT_SUCCESS &&
+        throw(AndorError(:AT_QueueBuffer, code))
+    return code
+end
+
+"""
+
 ```julia
 _flush(cam, throwerrors=false) -> code
 ```
@@ -121,12 +170,17 @@ is complete then the remaining buffers will be used the next time an
 acquisition is started.  This function should always be called after the
 "AcquisitionStop" command has been sent.
 
+If `throwerrors` is true, an `AndorError` exception is automatically thrown in
+case of error; otherwise, any other returned value than `AT_SUCCESS` indicates
+an error.
+
 """
 function _flush(cam::Camera, throwerrors::Bool = false)
     code = ccall((:AT_Flush, _DLL), AT_STATUS, (AT_HANDLE,), cam)
     throwerrors && code != AT_SUCCESS && throw(AndorError(:AT_Flush, code))
     return code
 end
+
 
 # Execute a command:
 
