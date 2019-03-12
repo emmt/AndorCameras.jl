@@ -23,6 +23,21 @@ struct AndorError <: Exception
     AndorError(func::AbstractString, code::Integer) = new(Symbol(func), code)
 end
 
+"""
+
+`AndorCameraModel` is used to wrap a constant identifier to quickly identify a
+specific camera model.
+
+"""
+struct AndorCameraModel
+    id::Int
+end
+Base.:(==)(a::AndorCameraModel, b::AndorCameraModel) = a.id == b.id
+const _UNKNOWN_MODEL  = AndorCameraModel(0)
+const _SIM_CAM_MODEL  = AndorCameraModel(1)
+const _ZYLA_MODEL     = AndorCameraModel(2)
+const _ZYLA_USB_MODEL = AndorCameraModel(3)
+
 # Camera structure.
 mutable struct Camera <: ScientificCamera
     state::Int
@@ -30,13 +45,13 @@ mutable struct Camera <: ScientificCamera
     lastimg::Array{T,2} where {T}      # last image
     bytesperline::Int
     clockfrequency::Int
-    mono12packed::Bool
-    simcam::Bool # is this camera a "SimCam"?
+    model::AndorCameraModel
     handle::AT_HANDLE
+    mono12packed::Bool
     Camera() = new(0,
                    Vector{Vector{UInt8}}(undef, 0),
                    Array{UInt8,2}(undef, 0, 0),
-                   0, 0, false, false, AT_HANDLE_UNINITIALISED)
+                   0, 0, _UNKNOWN_MODEL, AT_HANDLE_UNINITIALISED, false)
 end
 
 const AndorCamera = Camera

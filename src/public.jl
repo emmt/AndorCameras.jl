@@ -17,9 +17,16 @@ function open(::Type{Camera}, dev::Integer)
     _checkstatus(:AT_Open, code)
     cam = Camera()
     cam.state = 1
+    cam.model = _UNKNOWN_MODEL
     cam.handle = href[]
-    cam.simcam = (isimplemented(cam, CameraModel) &&
-                  cam[CameraModel] == "SIMCAM CMOS")
+    if isimplemented(cam, CameraModel)
+        model = cam[CameraModel]
+        if model == "SIMCAM CMOS"
+            cam.model = _SIM_CAM_MODEL
+        elseif model == "ZYLA-4.2P-USB3"
+            cam.model = _ZYLA_USB_MODEL
+        end
+    end
     return finalizer(_close, cam)
 end
 
@@ -257,12 +264,16 @@ function timeout2ms(timeout::Real)
     return (timeout ≥ Inf ? AT_INFINITE : round(AT_MSEC, timeout*1_000))
 end
 
+@noinline _warntimeout(cnt::Integer) =
+    @warn "Acquisition timeout after $cnt image(s)"
+
 # Extend method.
 function read(cam::Camera, ::Type{T}, num::Int;
               nbufs::Integer = 4,
               skip::Integer = 0,
               timeout::Real = defaulttimeout(cam),
               truncate::Bool = false,
+              ignoretimeouts::Bool = false,
               quiet::Bool = false) where {T}
 
     # Check timeout and convert it in milliseconds.
@@ -278,22 +289,37 @@ function read(cam::Camera, ::Type{T}, num::Int;
     cnt = 0
     while cnt < num
         try
-            _wait(cam, ms, skip > 0)
-        catch err
-            if truncate && isa(err, TimeoutError)
-                quiet || @warn "acquisition timeout after $cnt image(s)" # FIXME:
-                num = cnt
-                resize!(imgs, num)
+            _wait(cam, ms, skip > 0, quiet)
+            if skip > zero(skip)
+                skip -= one(skip)
             else
+                cnt += 1
+                imgs[cnt] = copy(cam.lastimg)
+            end
+        catch err
+            solved = false
+            if isa(err, TimeoutError)
+                if ignoretimeouts
+                    # Pretend the problem has been solved.
+                    solved = true
+                elseif truncate
+                    # Truncate the image sequence.
+                    num = cnt
+                    resize!(imgs, num)
+                    solved = true
+                end
+                if solved
+                    # The error has been solved, print a warning unless quiet
+                    # is true.
+                    quiet || _warntimeout(cnt)
+                end
+            end
+            if !solved
+                # The error has not been solved, abort the acquisition and
+                # rethrow the exception.
                 abort(cam)
                 rethrow(err)
             end
-        end
-        if skip > zero(skip)
-            skip -= one(skip)
-        else
-            cnt += 1
-            imgs[cnt] = copy(cam.lastimg)
         end
     end
 
@@ -305,7 +331,9 @@ end
 function read(cam::Camera, ::Type{T};
               skip::Integer = 0,
               nbufs::Integer = 1,
-              timeout::Real = defaulttimeout(cam)) where {T}
+              timeout::Real = defaulttimeout(cam),
+              ignoretimeouts::Bool = false,
+              quiet::Bool = false) where {T}
 
     # Check timeout and convert it in milliseconds.
     ms = timeout2ms(timeout)
@@ -313,18 +341,25 @@ function read(cam::Camera, ::Type{T};
     # Start the acquisition.
     start(cam, T, nbufs)
 
-    # Acquire all images.
-    while true
+    # Acquire a single image.
+    cnt = 0
+    while cnt < 1
         try
-            _wait(cam, ms, skip > 0)
+            _wait(cam, ms, skip > 0, quiet)
+            if skip > zero(skip)
+                skip -= one(skip)
+            else
+                cnt += 1
+            end
         catch err
-            abort(cam)
-            rethrow(err)
-        end
-        if skip > zero(skip)
-            skip -= one(skip)
-        else
-            break
+            if isa(err, TimeoutError) && ignoretimeouts
+                # Print a warning unless quiet is true.
+                quiet || _warntimeout(cnt)
+            else
+                # Abort the acquisition and rethrow the exception.
+                abort(cam)
+                rethrow(err)
+            end
         end
     end
 
@@ -416,7 +451,7 @@ function release(cam::Camera)
     return nothing
 end
 
-function _wait(cam::Camera, ms::Integer, skip::Bool)
+function _wait(cam::Camera, ms::Integer, skip::Bool=false, quiet::Bool=false)
     # Check arguments.
     checkstate(cam, 2, true)
 
@@ -426,28 +461,32 @@ function _wait(cam::Camera, ms::Integer, skip::Bool)
     # which should be sufficient!
     refptr = Ref{Ptr{AT_BYTE}}()
     refsiz = Ref{AT_LENGTH}()
-
     code = ccall((:AT_WaitBuffer, _DLL), AT_STATUS,
                  (AT_HANDLE, Ref{Ptr{AT_BYTE}}, Ref{AT_LENGTH}, AT_MSEC),
                  cam, refptr, refsiz, ms)
-
-        if code != 0
-            #throw(TimeoutError())
-            @warn "Timeout ...(restarting)"
-		if cam[CameraModel] =="ZYLA-4.2P-USB3"
-			run(`/usr/local/bin/resetAndor`);
-		end
-            send(cam, AcquisitionStop);
-            send(cam, AcquisitionStart);
-        else
-           ptr = refptr[]
-           framesize = Int(refsiz[])
-           extract!(cam.lastimg,refptr[], refsiz[], cam.bytesperline)
-           code = ccall((:AT_QueueBuffer, _DLL), AT_STATUS,
-               (AT_HANDLE, Ptr{AT_BYTE}, AT_LENGTH),
-                           cam, refptr[] , refsiz[]);
+    if code != AT_SUCCESS
+        code == AT_ERR_TIMEDOUT || throw(AndorError(:AT_WaitBuffer, code))
+        if cam.model == _ZYLA_USB_MODEL
+            # Reset USB connection.
+            dev = find_zyla()
+            if dev == ""
+                quiet || @warn "Timeout! USB connection not found..."
+            else
+                reset_usb(dev)
+                send(cam, AcquisitionStop)
+                send(cam, AcquisitionStart)
+                quiet || @warn "Timeout! USB connection has been reset..."
+            end
         end
-
+        throw(TimeoutError())
+     else
+        ptr = refptr[]
+        framesize = Int(refsiz[])
+        extract!(cam.lastimg,refptr[], refsiz[], cam.bytesperline)
+        code = ccall((:AT_QueueBuffer, _DLL), AT_STATUS,
+                     (AT_HANDLE, Ptr{AT_BYTE}, AT_LENGTH),
+                     cam, refptr[] , refsiz[]);
+    end
 
     # Get the timestamp.
     local ticks::Float64 # to enforce type stability
