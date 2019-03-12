@@ -88,16 +88,27 @@ function _command(cam::Camera, cmd::CommandFeature, throwerrors::Bool = false)
                  (AT_HANDLE, AT_FEATURE),
                  cam, cmd.name)
     if code != AT_SUCCESS
-      @warn "AT_Command error on: cmd.name"  
+        throwerrors && throw(AndorError(:AT_Command, code))
+        @warn "Call to AT_Command(handle, L\"$cmd\") failed with code $code"
     end
-    #throwerrors && code != AT_SUCCESS && throw(AndorError(:AT_Command, code))
-    #nothing
+    nothing
 end
 
 _stop(cam::Camera, throwerrors::Bool = false) =
-(cam[CameraModel] != "SIMCAM CMOS" && 
-    _command(cam, AcquisitionStop, throwerrors))
+    issimcam(cam) || _command(cam, AcquisitionStop, throwerrors)
 
+"""
+
+```julia
+AndorCameras.issimcam(cam) -> boolean
+```
+
+returns whether Andor camera `cam` is a simulated one, i.e. named "SimCam" in
+the documentation of Andor SDK.
+
+"""
+issimcam(cam::Camera) =
+    isimplemented(cam, CameraModel) && cam[CameraModel] == "SIMCAM CMOS"
 
 """
 ```julia
