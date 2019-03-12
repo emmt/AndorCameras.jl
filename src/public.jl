@@ -251,6 +251,12 @@ function getcapturebitstype(cam::Camera)
     return (T == Nothing ? AT_BYTE : T)
 end
 
+# Check timeout and convert it in milliseconds.
+function timeout2ms(timeout::Real)
+    timeout > 0 || throw(ArgumentError("invalid timeout"))
+    return (timeout ≥ Inf ? AT_INFINITE : round(AT_MSEC, timeout*1_000))
+end
+
 # Extend method.
 function read(cam::Camera, ::Type{T}, num::Int;
               nbufs::Integer = 4,
@@ -260,9 +266,7 @@ function read(cam::Camera, ::Type{T}, num::Int;
               quiet::Bool = false) where {T}
 
     # Check timeout and convert it in milliseconds.
-    timeout > 0 || throw(ArgumentError("invalid timeout"))
-    timeout_ms = (timeout ≥ Inf ? AT_INFINITE :
-                  round(AT_MSEC, timeout*1_000))
+    ms = timeout2ms(timeout)
 
     # Allocate vector of images.
     imgs = Vector{Array{T,2}}(undef, num)
@@ -274,7 +278,7 @@ function read(cam::Camera, ::Type{T}, num::Int;
     cnt = 0
     while cnt < num
         try
-            _wait(cam, timeout_ms, skip > 0)
+            _wait(cam, ms, skip > 0)
         catch err
             if truncate && isa(err, TimeoutError)
                 quiet || @warn "acquisition timeout after $cnt image(s)" # FIXME:
@@ -304,8 +308,7 @@ function read(cam::Camera, ::Type{T};
               timeout::Real = defaulttimeout(cam)) where {T}
 
     # Check timeout and convert it in milliseconds.
-    timeout > 0 || throw(ArgumentError("invalid timeout"))
-    timeout_ms = round(AT_MSEC, timeout*1_000)
+    ms = timeout2ms(timeout)
 
     # Start the acquisition.
     start(cam, T, nbufs)
@@ -313,7 +316,7 @@ function read(cam::Camera, ::Type{T};
     # Acquire all images.
     while true
         try
-            _wait(cam, timeout_ms, skip > 0)
+            _wait(cam, ms, skip > 0)
         catch err
             abort(cam)
             rethrow(err)
@@ -423,9 +426,6 @@ function _wait(cam::Camera, ms::Integer, skip::Bool)
     # which should be sufficient!
     refptr = Ref{Ptr{AT_BYTE}}()
     refsiz = Ref{AT_LENGTH}()
-
-    FrR=min(cam[FrameRate],45);         # ... nonlinear timeout (bof...)
-    ms=UInt32(round(5/FrR*1000));       # ... better (bg)
 
     code = ccall((:AT_WaitBuffer, _DLL), AT_STATUS,
                  (AT_HANDLE, Ref{Ptr{AT_BYTE}}, Ref{AT_LENGTH}, AT_MSEC),
