@@ -10,77 +10,24 @@
 # Copyright (C) 2017-2019, Éric Thiébaut.
 #
 
+"""
+```julia
+using AndorCameras.AT
+```
+
+makes all Andor cameras constants and low-level functions available (they are
+all prefixed with `AT.`).
+
+"""
 module AT
 
 export
     @L_str
 
-const _DLL = "/usr/local/andor/lib/libatcore.so"
+isfile(joinpath(@__DIR__,"..","deps","deps.jl")) ||
+    error("Tcl not properly installed.  Please run `Pkg.build(\"Tcl\")` to create file \"",joinpath(@__DIR__,"..","deps","deps.jl"),"\"")
 
-const STATUS   = Cint
-const HANDLE   = Cint     # AT_H in <atcore.h>
-const INDEX    = Cint     # for camera index
-const ENUM     = Cint     # for enumeration
-const BOOL     = Cint
-const INT      = Int64    # AT_64 in <atcore.h>
-const FLOAT    = Cdouble
-const BYTE     = UInt8    # AT_U8 in <atcore.h>
-const WCHAR    = Cwchar_t # AT_WC in <atcore.h>
-const STRING   = Cwstring
-const FEATURE  = Ptr{WCHAR}
-const LENGTH   = Cint     # for string length
-const MSEC     = Cuint    # for timeout in milliseconds
-
-const INFINITE = MSEC(0xFFFFFFFF)
-
-const TRUE  = BOOL(1)
-const FALSE = BOOL(0)
-
-const HANDLE_SYSTEM = HANDLE(1)
-const HANDLE_UNINITIALISED = HANDLE(-1)
-
-# Returned status codes.  Any value but SUCCESS indicates an error.
-const SUCCESS = STATUS(0)
-const ERR_NOTINITIALISED = STATUS(1)
-const ERR_NOTIMPLEMENTED = STATUS(2)
-const ERR_READONLY = STATUS(3)
-const ERR_NOTREADABLE = STATUS(4)
-const ERR_NOTWRITABLE = STATUS(5)
-const ERR_OUTOFRANGE = STATUS(6)
-const ERR_INDEXNOTAVAILABLE = STATUS(7)
-const ERR_INDEXNOTIMPLEMENTED = STATUS(8)
-const ERR_EXCEEDEDMAXSTRINGLENGTH = STATUS(9)
-const ERR_CONNECTION = STATUS(10)
-const ERR_NODATA = STATUS(11)
-const ERR_INVALIDHANDLE = STATUS(12)
-const ERR_TIMEDOUT = STATUS(13)
-const ERR_BUFFERFULL = STATUS(14)
-const ERR_INVALIDSIZE = STATUS(15)
-const ERR_INVALIDALIGNMENT = STATUS(16)
-const ERR_COMM = STATUS(17)
-const ERR_STRINGNOTAVAILABLE = STATUS(18)
-const ERR_STRINGNOTIMPLEMENTED = STATUS(19)
-const ERR_NULL_FEATURE = STATUS(20)
-const ERR_NULL_HANDLE = STATUS(21)
-const ERR_NULL_IMPLEMENTED_VAR = STATUS(22)
-const ERR_NULL_READABLE_VAR = STATUS(23)
-const ERR_NULL_READONLY_VAR = STATUS(24)
-const ERR_NULL_WRITABLE_VAR = STATUS(25)
-const ERR_NULL_MINVALUE = STATUS(26)
-const ERR_NULL_MAXVALUE = STATUS(27)
-const ERR_NULL_VALUE = STATUS(28)
-const ERR_NULL_STRING = STATUS(29)
-const ERR_NULL_COUNT_VAR = STATUS(30)
-const ERR_NULL_ISAVAILABLE_VAR = STATUS(31)
-const ERR_NULL_MAXSTRINGLENGTH = STATUS(32)
-const ERR_NULL_EVCALLBACK = STATUS(33)
-const ERR_NULL_QUEUE_PTR = STATUS(34)
-const ERR_NULL_WAIT_PTR = STATUS(35)
-const ERR_NULL_PTRSIZE = STATUS(36)
-const ERR_NOMEMORY = STATUS(37)
-const ERR_DEVICEINUSE = STATUS(38)
-const ERR_DEVICENOTFOUND = STATUS(39)
-const ERR_HARDWARE_OVERFLOW = STATUS(100)
+include("../deps/deps.jl")
 
 struct Status
     func::Symbol

@@ -37,17 +37,14 @@ clean:
 
 all: deps.jl reset-zyla
 
-deps.jl: genconst.out gendeps.sh
+deps.jl: gendeps
 	rm -f "$@"
-	./gendeps.sh genconst.out "$@"
+	./gendeps >"$@"
 	chmod a-w "$@"
 
 reset-zyla: $(srcdir)/reset-zyla.c
 	$(CC) $(CPPFLAGS) $(USB_DEFS) $(CFLAGS) $< -o $@  $(USB_LIBS)
 
-genconst.out: genconst
-	./genconst >genconst.out
-
-genconst: genconst.c Makefile
+gendeps: gendeps.c Makefile
 	$(CC) $(CPPFLAGS) $(AT_DEFS) $(CFLAGS) \
 	    -DAT_DLL=\"$(AT_DLL)\" $< -o $@

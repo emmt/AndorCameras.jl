@@ -34,14 +34,10 @@ import ScientificCameras: TimeoutError, ScientificCamera, ROI
 
 using Printf
 
-isfile(joinpath(@__DIR__,"..","deps","deps.jl")) ||
-    error("Tcl not properly installed.  Please run `Pkg.build(\"Tcl\")` to create file \"",joinpath(@__DIR__,"..","deps","deps.jl"),"\"")
-
 include("AT.jl")
 using .AT
 include("types.jl")
 include("errors.jl")
-#include("strings.jl")
 include("base.jl")
 include("features.jl")
 using .Features
