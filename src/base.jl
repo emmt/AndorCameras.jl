@@ -410,14 +410,14 @@ resets USB device `dev`.
 reset_usb
 @static if Sys.islinux()
     function reset_usb(dev::AbstractString)
-        fd = ccall(:open, Cint, (Cstring, Cint), dev, O_WRONLY)
+        fd = ccall(:open, Cint, (Cstring, Cint), dev, AT.O_WRONLY)
         if fd == -1
             code, mesg = syserrorinfo()
             error("can't open USB device '$dev' for writing: $mesg (errno=$code)")
         end
         try
             if ccall(:ioctl, Cint, (Cint, Culong, Cint),
-                     fd, USBDEVFS_RESET, 0) == -1
+                     fd, AT.USBDEVFS_RESET, 0) == -1
                 code, mesg = syserrorinfo()
                 error("can't reset USB device '$dev': $mesg (errno=$code)")
             end
