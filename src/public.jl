@@ -18,6 +18,8 @@ function open(::Type{Camera}, dev::Integer)
     cam = Camera()
     cam.state = 1
     cam.handle = href[]
+    cam.simcam = (isimplemented(cam, CameraModel) &&
+                  cam[CameraModel] == "SIMCAM CMOS")
     return finalizer(_close, cam)
 end
 
@@ -29,9 +31,8 @@ function stop(cam::Camera)
         return nothing
     end
     _stop(cam, true)
-    #_flush(cam, true)		..Done in start()
+    _flush(cam, true)
     cam.state = 1
-
     return nothing
 end
 
@@ -204,11 +205,18 @@ getspeed(cam::Camera) =
     (cam[FrameRate], cam[ExposureTime])
 
 function setspeed!(cam::Camera, fps::Float64, exp::Float64)
-    if cam[FrameRate] != fps
+    # First reduce frame rate (if fps is smaller than actual value), then set
+    # exposure time, then augment frame rate (if fps is larger than actual
+    # value).  This strategy is to avoid havin incompatible settings at any
+    # time.
+    if cam[FrameRate] > fps
         cam[FrameRate] = fps
     end
     if cam[ExposureTime] != exp
         cam[ExposureTime] = exp
+    end
+    if cam[FrameRate] < fps
+        cam[FrameRate] = fps
     end
     return nothing
 end
@@ -245,13 +253,14 @@ end
 
 # Extend method.
 function read(cam::Camera, ::Type{T}, num::Int;
+              nbufs::Integer = 4,
               skip::Integer = 0,
               timeout::Real = defaulttimeout(cam),
               truncate::Bool = false,
               quiet::Bool = false) where {T}
 
     # Check timeout and convert it in milliseconds.
-    timeout > 0 || error("invalid timeout")
+    timeout > 0 || throw(ArgumentError("invalid timeout"))
     timeout_ms = (timeout ≥ Inf ? AT_INFINITE :
                   round(AT_MSEC, timeout*1_000))
 
@@ -259,13 +268,13 @@ function read(cam::Camera, ::Type{T}, num::Int;
     imgs = Vector{Array{T,2}}(undef, num)
 
     # Start the acquisition.
-    start(cam, T, 1)    # ... :-) (bg)
+    start(cam, T, nbufs)
 
     # Acquire all images.
     cnt = 0
     while cnt < num
         try
-           @time _wait(cam, timeout_ms, skip > 0)
+            _wait(cam, timeout_ms, skip > 0)
         catch err
             if truncate && isa(err, TimeoutError)
                 quiet || @warn "acquisition timeout after $cnt image(s)" # FIXME:
@@ -291,14 +300,15 @@ end
 
 function read(cam::Camera, ::Type{T};
               skip::Integer = 0,
+              nbufs::Integer = 1,
               timeout::Real = defaulttimeout(cam)) where {T}
 
     # Check timeout and convert it in milliseconds.
-    timeout > 0 || error("invalid timeout")
+    timeout > 0 || throw(ArgumentError("invalid timeout"))
     timeout_ms = round(AT_MSEC, timeout*1_000)
 
     # Start the acquisition.
-    start(cam, T, 1)        # :-) ... (bg)
+    start(cam, T, nbufs)
 
     # Acquire all images.
     while true
@@ -325,13 +335,10 @@ function start(cam::Camera, ::Type{T}, nbufs::Int) where {T}
 
     # Check arguments.
     checkstate(cam, 1, true)
-    if nbufs < 1
-        error("bad number of frame buffers")
-    end
+    nbufs ≥ 1 || throw(ArgumentError("invalid number of acquisition buffers"))
 
     # Make sure no buffers are currently in use.
-	print("Flushing...")    
-	_flush(cam, true)
+    _flush(cam, true)
 
     # Turn on metadata (this must be done before getting the frame size).
     if (isimplemented(cam, MetadataEnable) &&
@@ -363,7 +370,7 @@ function start(cam::Camera, ::Type{T}, nbufs::Int) where {T}
             throw(AndorError(:AT_QueueBuffer, code))
         end
     end
-    println("allocated ",nbufs," buffer(s)")
+
     # Allocate array to store last image.
     width = (isimplemented(cam, AOIWidth) ? cam[AOIWidth]
              : cam[SensorWidth])
@@ -384,13 +391,12 @@ function start(cam::Camera, ::Type{T}, nbufs::Int) where {T}
     end
 
     # Set the camera to continuously acquires frames.
-     cam[CycleMode] = "Continuous"
-     cam[TriggerMode]="Internal"        # ... better (bg)
+    cam[CycleMode] = "Continuous"
+    cam[TriggerMode] = "Internal"
 
     # Start the acquisition.
     send(cam, AcquisitionStart)
     cam.state = 2
- 
     return nothing
 end
 
@@ -410,7 +416,7 @@ end
 function _wait(cam::Camera, ms::Integer, skip::Bool)
     # Check arguments.
     checkstate(cam, 2, true)
-    
+
     # Sleep in this thread until data is ready.  Note that the timeout argument
     # is pretended to be `Cint` because `AT_INFINITE` is `-1` whereas it is
     # `Cuint`.  This limits the maximum allowed timeout to about 24.9 days
@@ -420,11 +426,11 @@ function _wait(cam::Camera, ms::Integer, skip::Bool)
 
     FrR=min(cam[FrameRate],45);         # ... nonlinear timeout (bof...)
     ms=UInt32(round(5/FrR*1000));       # ... better (bg)
-    
+
     code = ccall((:AT_WaitBuffer, _DLL), AT_STATUS,
                  (AT_HANDLE, Ref{Ptr{AT_BYTE}}, Ref{AT_LENGTH}, AT_MSEC),
                  cam, refptr, refsiz, ms)
-   
+
         if code != 0
             #throw(TimeoutError())
             @warn "Timeout ...(restarting)"
@@ -439,12 +445,12 @@ function _wait(cam::Camera, ms::Integer, skip::Bool)
            extract!(cam.lastimg,refptr[], refsiz[], cam.bytesperline)
            code = ccall((:AT_QueueBuffer, _DLL), AT_STATUS,
                (AT_HANDLE, Ptr{AT_BYTE}, AT_LENGTH),
-                           cam, refptr[] , refsiz[]);    
+                           cam, refptr[] , refsiz[]);
         end
-   
-    
+
+
     # Get the timestamp.
-    #local ticks::Float64
+    local ticks::Float64 # to enforce type stability
     if cam.clockfrequency > 0
         tickscnt = unsafe_load(Ptr{UInt64}(ptr + framesize - METADATA_SIZE))
         if ENDIAN_BOM == 0x01020304

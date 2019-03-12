@@ -80,6 +80,7 @@ function _close(cam::Camera, throwerrors::Bool = false)
         cam.state = 0
         throwerrors && code != AT_SUCCESS && throw(AndorError(:AT_Close, code))
     end
+    cam.simcam = false
     nothing
 end
 
@@ -107,8 +108,7 @@ returns whether Andor camera `cam` is a simulated one, i.e. named "SimCam" in
 the documentation of Andor SDK.
 
 """
-issimcam(cam::Camera) =
-    isimplemented(cam, CameraModel) && cam[CameraModel] == "SIMCAM CMOS"
+issimcam(cam::Camera) = cam.simcam
 
 """
 ```julia

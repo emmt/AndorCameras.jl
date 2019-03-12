@@ -31,11 +31,12 @@ mutable struct Camera <: ScientificCamera
     bytesperline::Int
     clockfrequency::Int
     mono12packed::Bool
+    simcam::Bool # is this camera a "SimCam"?
     handle::AT_HANDLE
     Camera() = new(0,
                    Vector{Vector{UInt8}}(undef, 0),
                    Array{UInt8,2}(undef, 0, 0),
-                   0, 0, false, AT_HANDLE_UNINITIALISED)
+                   0, 0, false, false, AT_HANDLE_UNINITIALISED)
 end
 
 const AndorCamera = Camera
