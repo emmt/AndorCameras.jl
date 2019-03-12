@@ -21,18 +21,17 @@ makes all Andor cameras feature definitions available.
 module Features
 
 import
+    ..AT,
     ..AbstractFeature,
-    ..CommandFeature,
     ..BooleanFeature,
-    ..EnumeratedFeature,
-    ..IntegerFeature,
-    ..FloatingPointFeature,
-    ..StringFeature,
     ..BooleanOrEnumeratedFeature,
-    ..@L_str,
+    ..CommandFeature,
+    ..EnumeratedFeature,
+    ..FloatingPointFeature,
+    ..IntegerFeature,
+    ..StringFeature,
     ..isavailable,
-    ..isimplemented,
-    ..widestring
+    ..isimplemented
 
 # Export the following methods for those who `using AndorCameras.Features`
 # (feature constants will be exported while being defined below):

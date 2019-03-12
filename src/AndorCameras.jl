@@ -16,8 +16,7 @@ module AndorCameras
 
 export
     AndorCamera,
-    AndorError,
-    send
+    AndorError
 
 # Import `ScientificCameras` methods in such a way that they can be extended in
 # this module and re-export them to make things easier for the end-user.
@@ -34,15 +33,15 @@ end
 import ScientificCameras: TimeoutError, ScientificCamera, ROI
 
 using Printf
-import Sockets: send
 
 isfile(joinpath(@__DIR__,"..","deps","deps.jl")) ||
     error("Tcl not properly installed.  Please run `Pkg.build(\"Tcl\")` to create file \"",joinpath(@__DIR__,"..","deps","deps.jl"),"\"")
 
-include("../deps/deps.jl")
+include("AT.jl")
+using .AT
 include("types.jl")
 include("errors.jl")
-include("strings.jl")
+#include("strings.jl")
 include("base.jl")
 include("features.jl")
 using .Features

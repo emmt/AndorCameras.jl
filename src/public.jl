@@ -11,14 +11,11 @@
 #
 
 function open(::Type{Camera}, dev::Integer)
-    href = Ref{AT_HANDLE}()
-    code = ccall((:AT_Open, _DLL), AT_STATUS,
-                 (AT_INDEX, Ptr{AT_HANDLE}), dev, href)
-    _checkstatus(:AT_Open, code)
+    handle = check(AT.Open(dev))
     cam = Camera()
     cam.state = 1
     cam.model = _UNKNOWN_MODEL
-    cam.handle = href[]
+    cam.handle = handle
     if isimplemented(cam, CameraModel)
         model = cam[CameraModel]
         if model == "SIMCAM CMOS"
@@ -30,15 +27,15 @@ function open(::Type{Camera}, dev::Integer)
     return finalizer(_close, cam)
 end
 
-close(cam::Camera) = _close(cam, true)
+close(cam::Camera) = _close(cam; throwerrors=true)
 
 function stop(cam::Camera)
     if cam.state != 2
         @warn "not acquiring"
         return nothing
     end
-    _stop(cam, true)
-    _flush(cam, true)
+    check(_stop(cam))
+    check(AT.Flush(cam))
     cam.state = 1
     return nothing
 end
@@ -92,7 +89,7 @@ end
 
 function setroi!(cam::Camera, roi::ROI)
     # Check parameters.
-    checkstate(cam, 1, true)
+    checkstate(cam, 1, throwerrors=true)
     fullwidth = getfullwidth(cam)
     fullheight = getfullheight(cam)
     checkroi(roi, fullwidth, fullheight)
@@ -198,7 +195,7 @@ getpixelformat(cam::Camera) =
     get(_PIXEL_ENCODING_TYPES, repr(cam, PixelEncoding), Nothing)
 
 function setpixelformat!(cam::Camera, ::Type{T}) where {T<:PixelFormat}
-    checkstate(cam, 1, true)
+    checkstate(cam, 1, throwerrors=true)
     if T == getpixelformat(cam)
         return T
     elseif haskey(_PIXEL_ENCODING_NAMES, T)
@@ -255,13 +252,13 @@ const METADATA_SIZE = (LENGTH_FIELD_SIZE + CID_FIELD_SIZE
 # Extend method.
 function getcapturebitstype(cam::Camera)
     T = equivalentbitstype(getpixelformat(cam))
-    return (T == Nothing ? AT_BYTE : T)
+    return (T == Nothing ? AT.BYTE : T)
 end
 
 # Check timeout and convert it in milliseconds.
 function timeout2ms(timeout::Real)
     timeout > 0 || throw(ArgumentError("invalid timeout"))
-    return (timeout ≥ Inf ? AT_INFINITE : round(AT_MSEC, timeout*1_000))
+    return (timeout ≥ Inf ? AT.INFINITE : round(AT.MSEC, timeout*1_000))
 end
 
 @noinline _warntimeout(cnt::Integer) =
@@ -372,11 +369,11 @@ end
 function start(cam::Camera, ::Type{T}, nbufs::Int) where {T}
 
     # Check arguments.
-    checkstate(cam, 1, true)
+    checkstate(cam, 1, throwerrors=true)
     nbufs ≥ 1 || throw(ArgumentError("invalid number of acquisition buffers"))
 
     # Make sure no buffers are currently in use.
-    _flush(cam, true)
+    check(AT.Flush(cam))
 
     # Turn on metadata (this must be done before getting the frame size).
     if (isimplemented(cam, MetadataEnable) &&
@@ -398,13 +395,12 @@ function start(cam::Camera, ::Type{T}, nbufs::Int) where {T}
     end
     for i in 1:nbufs
         if ! isassigned(cam.bufs, i) || sizeof(cam.bufs[i]) != framesize
-            cam.bufs[i] = Vector{AT_BYTE}(undef, framesize)
+            cam.bufs[i] = Vector{AT.BYTE}(undef, framesize)
         end
-        try
-            _queuebuffer(cam, cam.bufs[i], true)
-        catch err
-            _flush(cam, false)
-            rethrow(err)
+        status = AT.QueueBuffer(cam, cam.bufs[i])
+        if isfailure(status)
+            AT.Flush(cam)
+            error(status)
         end
     end
 
@@ -432,39 +428,37 @@ function start(cam::Camera, ::Type{T}, nbufs::Int) where {T}
     cam[TriggerMode] = "Internal"
 
     # Start the acquisition.
-    send(cam, AcquisitionStart)
+    check(AT.Command(cam, AcquisitionStart))
     cam.state = 2
     return nothing
 end
 
 # Extend method.
 function wait(cam::Camera, sec::Float64 = 0.0)
-    ms = (sec ≥ typemax(AT_MSEC) ? AT_INFINITE : round(AT_MSEC, sec*1_000))
+    ms = (sec ≥ typemax(AT.MSEC) ? AT.INFINITE : round(AT.MSEC, sec*1_000))
     ticks = _wait(cam, ms, false)
     return cam.lastimg, ticks
 end
 
 # Extend method.
 function release(cam::Camera)
-    checkstate(cam, 2, true)
+    checkstate(cam, 2, throwerrors=true)
     return nothing
 end
 
 function _wait(cam::Camera, ms::Integer, skip::Bool=false, quiet::Bool=false)
     # Check arguments.
-    checkstate(cam, 2, true)
+    checkstate(cam, 2, throwerrors=true)
 
     # Sleep in this thread until data is ready.  Note that the timeout argument
-    # is pretended to be `Cint` because `AT_INFINITE` is `-1` whereas it is
+    # is pretended to be `Cint` because `AT.INFINITE` is `-1` whereas it is
     # `Cuint`.  This limits the maximum allowed timeout to about 24.9 days
     # which should be sufficient!
-    refbufptr = Ref{Ptr{AT_BYTE}}()
-    refbufsiz = Ref{AT_LENGTH}()
-    code = ccall((:AT_WaitBuffer, _DLL), AT_STATUS,
-                 (AT_HANDLE, Ref{Ptr{AT_BYTE}}, Ref{AT_LENGTH}, AT_MSEC),
-                 cam, refbufptr, refbufsiz, ms)
-    if code != AT_SUCCESS
-        code == AT_ERR_TIMEDOUT || throw(AndorError(:AT_WaitBuffer, code))
+    status, bufptr, bufsiz = AT.WaitBuffer(cam, ms)
+    if isfailure(status)
+        if status.code != AT.ERR_TIMEDOUT
+            error(status)
+        end
         if cam.model == _ZYLA_USB_MODEL
             # Reset USB connection.
             dev = find_zyla()
@@ -472,15 +466,13 @@ function _wait(cam::Camera, ms::Integer, skip::Bool=false, quiet::Bool=false)
                 quiet || @warn "Timeout! USB connection not found..."
             else
                 reset_usb(dev)
-                send(cam, AcquisitionStop)
-                send(cam, AcquisitionStart)
+                AT.Command(cam, AcquisitionStop)  # FIXME:
+                AT.Command(cam, AcquisitionStart) # FIXME:
                 quiet || @warn "Timeout! USB connection has been reset..."
             end
         end
         throw(TimeoutError())
     end
-    bufptr = refbufptr[]
-    bufsiz = Int(refbufsiz[])
 
     # Get the timestamp.
     local ticks::Float64 # to enforce type stability
@@ -505,14 +497,13 @@ function _wait(cam::Camera, ms::Integer, skip::Bool=false, quiet::Bool=false)
                     extract!(cam.lastimg, buf, cam.bytesperline)
                 end
             end
-            try
-                _queuebuffer(cam, bufptr, bufsiz, true)
-            catch err
+            status = AT.QueueBuffer(cam, bufptr, bufsiz)
+            if isfailure(status)
                 # Stop acquisition and report error.
-                _stop(cam, false)
-                _flush(cam, false)
+                _stop(cam)
+                AT.Flush(cam)
                 cam.state = 1
-                rethrow(err)
+                error(status)
             end
             return ticks
         end
