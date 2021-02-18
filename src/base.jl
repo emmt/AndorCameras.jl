@@ -160,7 +160,7 @@ isreadonly(cam::Camera, key::AbstractFeature) =
 # Integer features:
 
 Base.setindex!(cam::Camera, val::Integer, key::IntegerFeature) =
-    (check(AT.SetInt(cam, key, val)); val)
+    (check(AT.SetInt(cam, key, val)); return cam)
 
 Base.getindex(cam::Camera, key::IntegerFeature) =
     Int(check(AT.GetInt(cam, key)))
@@ -178,7 +178,7 @@ Base.getindex(cam::Camera, key::FloatingPointFeature) =
     Float64(check(AT.GetFloat(cam, key)))
 
 Base.setindex!(cam::Camera, val::Real, key::FloatingPointFeature) =
-    (check(AT.SetFloat(cam, key, val)); val)
+    (check(AT.SetFloat(cam, key, val)); return cam)
 
 Base.minimum(cam::Camera, key::FloatingPointFeature) =
     Float64(check(AT.GetFloatMin(cam, key, val)))
@@ -190,7 +190,7 @@ Base.maximum(cam::Camera, key::FloatingPointFeature) =
 # Boolean features:
 
 Base.setindex!(cam::Camera, val::Bool, key::BooleanFeature) =
-    (check(AT.SetBool(cam, key, val)); val)
+    (check(AT.SetBool(cam, key, val)); return cam)
 
 Base.getindex(cam::Camera, key::BooleanFeature) =
     check(AT.GetBool(cam, key))
@@ -208,7 +208,7 @@ function Base.getindex(cam::Camera, key::StringFeature) :: String
 end
 
 Base.setindex!(cam::Camera, val::AbstractString, key::StringFeature) =
-    check(AT.SetString(cam, key, AT.widestring(val)))
+    (check(AT.SetString(cam, key, AT.widestring(val))); return cam)
 
 
 # Enumerated features:
@@ -238,10 +238,10 @@ function Base.repr(cam::Camera, key::EnumeratedFeature, index::Integer)
 end
 
 Base.setindex!(cam::Camera, val::AbstractString, key::EnumeratedFeature) =
-    (check(AT.SetEnumString(cam, key, AT.widestring(val))); val)
+    (check(AT.SetEnumString(cam, key, AT.widestring(val))); return cam)
 
 Base.setindex!(cam::Camera, val::Integer, key::EnumeratedFeature) =
-    (check(AT.SetEnumIndex(cam, key, val - 1)); val)
+    (check(AT.SetEnumIndex(cam, key, val - 1)); return cam)
 
 
 # Extend basic methods:
