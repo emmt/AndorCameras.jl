@@ -33,7 +33,10 @@ LDFLAGS =
 default: deps.jl
 
 clean:
-	rm -f *~ *.o genconst genconst.out
+	rm -f *~ *.o genconst genconst.out gendeps
+
+distclean: clean
+	rm -f deps.jl
 
 all: deps.jl reset-zyla
 
