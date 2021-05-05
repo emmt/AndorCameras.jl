@@ -36,7 +36,7 @@ clean:
 	rm -f *~ *.o genconst genconst.out gendeps
 
 distclean: clean
-	rm -f deps.jl
+	rm -f deps.jl reset-zyla
 
 all: deps.jl reset-zyla
 
