@@ -54,7 +54,7 @@ static void _define(const char* type, const char* name,
 
 /* Define a Julia constant. */
 #define DEF_CONST(name, format)  printf("const " #name format "\n", name)
-#define DEF_AT_CONST(name, format)  printf("const " #name format "\n", JOIN(AT_,name))
+#define DEF_AT_CONST(name, format)  printf("const " #name format "\n", AT_##name)
 
 #define _JOIN(a,b) a##b
 #define JOIN(a,b) _JOIN(a,b)
