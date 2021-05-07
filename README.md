@@ -407,62 +407,115 @@ cam[AndorCameras.BooleanFeature("SomeBooleanFeature")] = false
 
 ## Installation
 
-`AndorCameras.jl` is not yet an
-[official Julia package](https://pkg.julialang.org/) so you have to clone the
-repository to install the package:
+The easiest way to install `AndorCameras` is via Julia's package manager but
+you may also do it from the shell.
+
+
+### Installation with Julia's package manager
+
+`AndorCameras` is not an [official Julia
+package](https://pkg.julialang.org/) and depends on the, also non-official,
+`ScientificCameras`](https://github.com/emmt/ScientificCameras.jl) package.  So
+you have to clone these repositories:
 
 ```julia
 using Pkg
+Pkg.clone("https://github.com/emmt/ScientificCameras.jl.git")
 Pkg.clone("https://github.com/emmt/AndorCameras.jl.git")
 Pkg.build("AndorCameras")
 ```
 
+or from Julia's package manager (hit the `]` key in Julia's REPL):
+
+```julia
+add "https://github.com/emmt/ScientificCameras.jl.git"
+add "https://github.com/emmt/AndorCameras.jl.git"
+build AndorCameras
+```
+
 The build process assumes that [Andor Software Development Kit
 (SDK)](http://www.andor.com/scientific-software/software-development-kit) has
-been installed in the usual directory `/usr/local/andor` (read the end of this
-section if you have installed the SDK elsewhere).
+been installed in the usual directory `/usr/local/andor` for Linux or
+`C:/Program Files/AndorSDK3` for Windows (read the end of this section if you
+have installed the SDK elsewhere).
 
-Later, it is sufficient to do:
+Later, to update to the latest version, it is sufficient to do:
 
 ```julia
 using Pkg
+Pkg.update("ScientificCameras")
 Pkg.update("AndorCameras")
 Pkg.build("AndorCameras")
 ```
 
-to use the latest version.  It may be a good idea to also pull the last version
-of `ScientificCameras`](https://github.com/emmt/ScientificCameras.jl).
+or from Julia's package manager:
 
-If you have `AndorCameras.jl` repository not managed at all by Julia's package
-manager, updating is a matter of:
-
-```sh
-cd "$ANDOR/deps"
-git pull
-make
+```julia
+update ScientificCameras AndorCameras
+build AndorCameras
 ```
 
-assuming `$ANDOR` is the path to the top level directory of the
-`AndorCameras.jl` repository.
+If Andor SDK is not installed in the usual directory, you can define the
+`AT_DIR`, `AT_INCDIR` and/or `AT_LIBDIR` environment variables before building
+`AndorCameras`.  These variables are used as follows:
 
-If Andor SDK is not installed in `/usr/local/andor`, you can modify the
-`AT_DIR` variable in [`deps/Makefile`](./deps/Makefile).  It is however better
-to override these variables on the command line and to update the code and
-build the dependencies as follows:
+* `AT_DIR` is the directory where the Andor SDK has been installed.  If this
+  environment variable is not defined, it is assumed to be `/usr/local/andor`
+  for Linux or `C:/Program Files/AndorSDK3` for Windows.
 
-```sh
-cd "$ANDOR/deps"
-git pull
-make AT_DIR="$INSTALL_DIR"
+* `AT_INCDIR` is the directory containing the Andor SDK header file `atcore.h`.
+  If this environment variable is not defined, the header file is searched in
+  directories `$AT_DIR/include` and `$AT_DIR` (in that order).
+
+* `AT_LIBDIR` is the directory containing the Andor SDK library (`libatcore.so`
+  on Linux, `atcore.dll` on Windows).  If this environment variable is not
+  defined, the library is searched in directories `$AT_DIR/lib` and `$AT_DIR`
+  (in that order).
+
+For instance id Andor SDK has been installed in `/opt/andor`, you can define
+the `AT_DIR` environment variable in Julia by:
+
+```julia
+ENV["AT_DIR"] = "/opt/andor"
 ```
 
-where `$INSTALL_DIR` is the path where Andor SDK has been installed.  For
-instance:
+before building `AndorCamera`:
 
-```sh
-cd "$ANDOR/deps"
-git pull
-make AT_DIR="/usr/local/andor"
+```julia
+using Pkg
+Pkg.build("AndorCameras")
 ```
 
-is what is assumed by default.
+or from Julia's package manager:
+
+```julia
+build AndorCameras
+```
+
+### Installation from the shell
+
+If you have `AndorCameras` repository not managed at all by Julia's package
+manager or if you want to clone/build/update `AndorCameras` from the shell,
+then:
+
+* cloning the repository is done by:
+
+  ```sh
+  git clone "https://github.com/emmt/AndorCameras.jl.git" "AndorCameras"
+  ```
+
+  where I am assuming that you want to clone in new directory `AndorCameras`.
+
+* building the last version is done by:
+
+  ```sh
+  cd AndorCameras/deps
+  git pull -r
+  make AT_INCDIR="$INCDIR" AT_LIBDIR="$LIBDIR"
+  ```
+
+  where `$INCDIR` and `$LIBDIR` are the directories where Andor SDK header
+  and library are installed (ion Windows these may be the same).
+
+If you install from the shell, remember to add the repository directory
+`AndorCameras` to Julia `LOAD_PATH`.
