@@ -8,7 +8,7 @@
  *
  * This file is part of "AndorCameras.jl" released under the MIT license.
  *
- * Copyright (C) 2017, Éric Thiébaut.
+ * Copyright (C) 2017-2021, Éric Thiébaut.
  */
 
 #include <stdio.h>
@@ -22,76 +22,9 @@
 # include <linux/usbdevice_fs.h>
 #endif
 
-#if 0
-/* Define a constant. */
-static void _define(const char* type, const char* name,
-                    int value, const char* comment)
-{
-  if (comment == NULL || comment[0] == '\0') {
-    printf("const %s = %s(0x%08X)\n", name, type, value);
-  } else {
-    printf("const %s = %s(0x%08X) # %s\n", name, type, value, comment);
-  }
-}
-#endif
-
-/* Will use the following macro to allow for macro argument expansion. */
-#define define(typ, cst, com) _define(typ, #cst, cst, com)
-
-#define alias_uint(nam, typ)  printf("const %s = UInt%d # %s\n",          \
-                                     nam, (int)sizeof(typ)*8, #typ)
-
-#define alias_enum(nam, typ)  printf("const %s = Cint # %s\n", nam, #typ)
-
-/* Determine the offset of a field in a structure. */
-#define OFFSET_OF(type, field) ((char*)&((type*)0)->field - (char*)0)
-
-/* Determine whether an integer type is signed. */
-#define IS_SIGNED(type)        ((type)(~(type)0) < (type)0)
-
-/* Set all the bits of an L-value. */
-#define SET_ALL_BITS(lval) lval = 0; lval = ~lval
-
 /* Define a Julia constant. */
 #define DEF_CONST(name, format)  printf("const " #name format "\n", name)
 #define DEF_AT_CONST(name, format)  printf("const " #name format "\n", AT_##name)
-
-#define _JOIN(a,b) a##b
-#define JOIN(a,b) _JOIN(a,b)
-
-/* Define a Julia alias for a C integer, given an L-value of the corresponding
- * type. */
-#define DEF_TYPEOF_LVALUE(name, lval)           \
-  do {                                          \
-    SET_ALL_BITS(lval);                         \
-    printf("const _typeof_%s = %sInt%u\n",      \
-           name, (lval < 0 ? "" : "U"),         \
-           (unsigned)(8*sizeof(lval)));         \
-                                                \
-  } while (0)
-
-/* Define a Julia alias for a C integer, given its type (`space` is used for
- * alignment). */
-#define DEF_TYPEOF_TYPE(type, space)            \
-  do {                                          \
-    type lval;                                  \
-    SET_ALL_BITS(lval);                         \
-    printf("const _typeof_%s%s = %sInt%u\n",    \
-           #type, space, (lval < 0 ? "" : "U"), \
-           (unsigned)(8*sizeof(lval)));         \
-                                                \
-  } while (0)
-
-/* Define a Julia constant with the offset (in bytes) of a field of a
- * C-structure. */
-#define DEF_OFFSETOF(ident, type, field)                \
-  printf("const _offsetof_" ident " = %3ld\n", \
-          (long)OFFSET_OF(type, field))
-
-/* Define a Julia constant with the size of a given C-type. */
-#define DEF_SIZEOF_TYPE(name, type)             \
-  printf("const _sizeof_%s = %3lu\n",           \
-         name, (unsigned long)sizeof(type))
 
 int main(int argc, char* argv[])
 {
@@ -106,7 +39,7 @@ int main(int argc, char* argv[])
   puts("#");
   puts("# This file is part of \"AndorCameras.jl\" released under the MIT license.");
   puts("#");
-  puts("# Copyright (C) 2017-2019, Éric Thiébaut.");
+  puts("# Copyright (C) 2017-2021, Éric Thiébaut.");
   puts("#");
   printf("\n");
   printf("# Path to the dynamic library.\n");
