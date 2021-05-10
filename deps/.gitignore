@@ -2,3 +2,4 @@ drivers
 gendeps
 deps.jl
 reset-zyla
+build.log
