@@ -30,20 +30,20 @@ CPPFLAGS = -I.
 CFLAGS = -O2 -Wall
 LDFLAGS =
 
-default: deps.jl
+TARGET = deps.jl
+
+default: $(TARGET)
 
 clean:
 	rm -f *~ *.o genconst genconst.out gendeps
 
 distclean: clean
-	rm -f deps.jl reset-zyla
+	rm -f $(TARGET) reset-zyla
 
-all: deps.jl reset-zyla
+all: $(TARGET) reset-zyla
 
-deps.jl: gendeps
-	rm -f "$@"
-	./gendeps >"$@"
-	chmod a-w "$@"
+$(TARGET): gendeps
+	./gendeps >$@
 
 reset-zyla: $(srcdir)/reset-zyla.c
 	$(CC) $(CPPFLAGS) $(USB_DEFS) $(CFLAGS) $< -o $@  $(USB_LIBS)
