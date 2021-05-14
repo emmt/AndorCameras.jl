@@ -24,10 +24,12 @@ module AT
 export
     @L_str
 
-isfile(joinpath(@__DIR__,"..","deps","deps.jl")) ||
-    error("Tcl not properly installed.  Please run `Pkg.build(\"Tcl\")` to create file \"",joinpath(@__DIR__,"..","deps","deps.jl"),"\"")
-
-include("../deps/deps.jl")
+let filename = joinpath(@__DIR__,"..","deps","deps.jl")
+    isfile(filename) || error(
+        "Package `AndorCameras` not properly installed.  Run ",
+        "`Pkg.build(\"AndorCameras\")` to create file \"", filename, "\".")
+    filename
+end |> include
 
 struct Status
     func::Symbol
