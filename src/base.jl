@@ -12,7 +12,8 @@
 
 # A bit of magic for ccall.
 Base.cconvert(::Type{AT.HANDLE}, cam::Camera) = cam.handle
-Base.cconvert(::Type{Ptr{AT.WCHAR}}, key::AbstractFeature) = key.name
+Base.cconvert(::Type{Ptr{Cwchar_t}}, key::AbstractFeature) =
+    WideStrings.buffer(key.name)
 
 getnumberofdevices() = Int(_NDEVS[])
 
@@ -190,14 +191,19 @@ Base.getindex(cam::Camera, key::BooleanFeature) =
 function Base.getindex(cam::Camera, key::StringFeature) :: String
     len = check(AT.GetStringMaxLength(cam, key))
     len ≥ 1 || error("invalid string length for feature \"$(repr(key.name))\"")
-    buf = Vector{AT.WCHAR}(undef, len)
+    buf = Vector{Cwchar_t}(undef, len)
     check(AT.GetString(cam, key, buf))
-    buf[len] = zero(AT.WCHAR)
-    return AT.widestringtostring(buf)
+    buf[len] = zero(eltype(buf))
+    return String(trunc!(WideString, buf))
 end
 
 Base.setindex!(cam::Camera, val::AbstractString, key::StringFeature) =
-    (check(AT.SetString(cam, key, AT.widestring(val))); return cam)
+    setindex!(cam, WideString(val), key)
+
+Base.setindex!(cam::Camera, val::WideString, key::StringFeature) = begin
+    check(AT.SetString(cam, key, val))
+    return cam
+end
 
 
 # Enumerated features:
@@ -220,14 +226,14 @@ Base.repr(cam::Camera, key::EnumeratedFeature) =
     repr(cam, key, cam[key])
 
 function Base.repr(cam::Camera, key::EnumeratedFeature, index::Integer)
-    buf = Vector{AT.WCHAR}(undef, 64)
+    buf = Vector{Cwchar_t}(undef, 64)
     check(AT.GetEnumStringByIndex(cam, key, index - 1, buf))
-    buf[end] = zero(AT.WCHAR)
-    return AT.widestringtostring(buf)
+    buf[end] = zero(eltype(buf))
+    return trunc!(WideString, buf)
 end
 
 Base.setindex!(cam::Camera, val::AbstractString, key::EnumeratedFeature) =
-    (check(AT.SetEnumString(cam, key, AT.widestring(val))); return cam)
+    (check(AT.SetEnumString(cam, key, WideString(val))); return cam)
 
 Base.setindex!(cam::Camera, val::Integer, key::EnumeratedFeature) =
     (check(AT.SetEnumIndex(cam, key, val - 1)); return cam)
@@ -235,13 +241,17 @@ Base.setindex!(cam::Camera, val::Integer, key::EnumeratedFeature) =
 
 # Extend basic methods:
 
-Base.print(io::IO, key::AbstractFeature) =
-    print(io, AT.widestringtostring(key.name))
+Base.String(key::AbstractFeature) = String(key.name)
+Base.string(key::AbstractFeature) = string(key.name)
 
-Base.repr(key::AbstractFeature) = AT.widestringtostring(key.name)
+Base.print(io::IO, m::MIME, key::AbstractFeature) =
+    print(io, m, key.name)
+
+Base.print(io::IO, key::AbstractFeature) =
+    print(io, key.name)
 
 Base.show(io::IO, key::T) where {T <: AbstractFeature} =
-    print(io, T, "(", AT.widestringtostring(key.name), ")")
+    print(io, T, "(", String(key.name), ")")
 
 function Base.show(io::IO, cam::T) where {T <: Camera}
     print(io, T, ":")

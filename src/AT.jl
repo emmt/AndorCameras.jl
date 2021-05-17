@@ -19,8 +19,7 @@ all prefixed with `AT.`).
 """
 module AT
 
-export
-    @L_str
+import ..WideStrings
 
 let filename = joinpath(@__DIR__,"..","deps","deps.jl")
     isfile(filename) || error(
@@ -300,69 +299,5 @@ WaitBuffer(handle, timeout::Integer) = begin
 end
 
 Flush(handle) = @call(:AT_Flush, STATUS, (HANDLE,), handle)
-
-"""
-    widestring(str, len = strlen(str))
-
-yields a vector of wide characters (`Cwchar_t`) with the contents of the string
-`str` and properly zero-terminated.  This buffer is independent from the input
-string and its contents can be overwritten.  An error is thrown if `str`
-contains any embedded NULL characters (which would cause the string to be
-silently truncated if the C routine treats NULL as the terminator).
-
-An alternative (without the checking of embedded NULL characters) is:
-
-    push!(transcode(Cwchar_t, str), convert(Cwchar_t, 0))
-
-This method is used to implement the `@L_str` macro which converts a
-literal string into a wide character string.  For instance:
-
-    L"EventSelector"
-
-"""
-function widestring(str::AbstractString,
-                    len::Integer = length(str)) :: Array{WCHAR}
-    buf = Array{WCHAR}(undef, len + 1)
-    i = 0
-    @inbounds for c in str
-        if i ≥ len
-            break
-        end
-        c != '\0' || error("strings must not have embedded NULL characters")
-        i += 1
-        buf[i] = c
-    end
-    @inbounds while i ≤ len
-        i += 1
-        buf[i] = zero(WCHAR)
-    end
-    return buf
-end
-
-widestring(sym::Symbol) = widestring(string(sym))
-
-function widestringtostring(arr::Array{WCHAR}) :: String
-    len = length(arr)
-    @inbounds while len > 0 && arr[len] == zero(WCHAR)
-        len -= 1
-    end
-    buf = Vector{Char}(undef, len)
-    @inbounds for i in 1:len
-        c = arr[i]
-        c != zero(WCHAR) || error("strings must not have embedded NULL characters")
-        buf[i] = c
-    end
-    return String(buf)
-end
-
-"""
-    L"text"
-
-yields an array of wide characters.
-
-"""
-macro L_str(str)
-    :(widestring($str))
-end
 
 end

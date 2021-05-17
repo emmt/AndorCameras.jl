@@ -7,7 +7,7 @@
 #
 # This file is part of "AndorCameras.jl" released under the MIT license.
 #
-# Copyright (C) 2017-2019, Éric Thiébaut.
+# Copyright (C) 2017-2021, Éric Thiébaut.
 #
 
 """
@@ -57,39 +57,18 @@ end
 
 const AndorCamera = Camera
 
+"""
+
+Concrete sub-types of `AbstractFeature` are simple wrappers around
+`WideString` instances to allow for type-stability.
+
+"""
 abstract type AbstractFeature end
 
-struct CommandFeature <: AbstractFeature
-    name::Vector{AT.WCHAR}
-    CommandFeature(sym::Symbol) = new(AT.widestring(sym))
-end
-
-struct BooleanFeature <: AbstractFeature
-    name::Vector{AT.WCHAR}
-    BooleanFeature(sym::Symbol) = new(AT.widestring(sym))
-end
-
-struct EnumeratedFeature <: AbstractFeature
-    name::Vector{AT.WCHAR}
-    EnumeratedFeature(sym::Symbol) = new(AT.widestring(sym))
-end
-
-struct IntegerFeature <: AbstractFeature
-    name::Vector{AT.WCHAR}
-    IntegerFeature(sym::Symbol) = new(AT.widestring(sym))
-end
-
-struct FloatingPointFeature <: AbstractFeature
-    name::Vector{AT.WCHAR}
-    FloatingPointFeature(sym::Symbol) = new(AT.widestring(sym))
-end
-
-struct StringFeature <: AbstractFeature
-    name::Vector{AT.WCHAR}
-    StringFeature(sym::Symbol) = new(AT.widestring(sym))
-end
-
-struct BooleanOrEnumeratedFeature <: AbstractFeature
-    name::Vector{AT.WCHAR}
-    BooleanOrEnumeratedFeature(sym::Symbol) = new(AT.widestring(sym))
+for T in (:CommandFeature, :BooleanFeature, :EnumeratedFeature,
+          :IntegerFeature, :FloatingPointFeature, :StringFeature,
+          :BooleanOrEnumeratedFeature, )
+    @eval struct $T <: AbstractFeature
+        name::WideString
+    end
 end
