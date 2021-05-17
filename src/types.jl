@@ -18,7 +18,7 @@ Sofware Develement Kit (SDK) of Andor cameras.
 """
 struct AndorError <: Exception
     func::Symbol
-    code::AT.STATUS
+    code::Cint
     AndorError(func::Symbol, code::Integer) = new(func, code)
     AndorError(func::AbstractString, code::Integer) = new(Symbol(func), code)
 end

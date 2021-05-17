@@ -7,7 +7,7 @@
 #
 # This file is part of "AndorCameras.jl" released under the MIT license.
 #
-# Copyright (C) 2017-2019, Éric Thiébaut.
+# Copyright (C) 2017-2021, Éric Thiébaut.
 #
 
 function open(::Type{Camera}, dev::Integer)
@@ -252,14 +252,15 @@ const METADATA_SIZE = (LENGTH_FIELD_SIZE + CID_FIELD_SIZE
 # Extend method.
 function getcapturebitstype(cam::Camera)
     T = equivalentbitstype(getpixelformat(cam))
-    return (T == Nothing ? AT.BYTE : T)
+    return (T == Nothing ? UInt8 : T)
 end
 
 # Check timeout and convert it in milliseconds.
 function timeout2ms(sec::Real)
     sec > 0 || throw(ArgumentError("invalid timeout"))
     msec = sec*1_000
-    return (msec > typemax(AT.MSEC) ? AT.INFINITE : round(AT.MSEC, msec))
+    return (msec > typemax(AT.INFINITE) ? AT.INFINITE :
+            round(typeof(AT.INFINITE), msec))
 end
 
 @noinline _warntimeout(cnt::Integer) =
@@ -396,7 +397,7 @@ function start(cam::Camera, ::Type{T}, nbufs::Int) where {T}
     end
     for i in 1:nbufs
         if ! isassigned(cam.bufs, i) || sizeof(cam.bufs[i]) != framesize
-            cam.bufs[i] = Vector{AT.BYTE}(undef, framesize)
+            cam.bufs[i] = Vector{UInt8}(undef, framesize)
         end
         status = AT.QueueBuffer(cam, cam.bufs[i])
         if isfailure(status)

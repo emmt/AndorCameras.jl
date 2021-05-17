@@ -12,7 +12,7 @@
 
 # A bit of magic for ccall.
 Base.cconvert(::Type{AT.HANDLE}, cam::Camera) = cam.handle
-Base.cconvert(::Type{Ptr{Cwchar_t}}, key::AbstractFeature) =
+Base.cconvert(::Type{Cwstring}, key::AbstractFeature) =
     WideStrings.buffer(key.name)
 
 getnumberofdevices() = Int(_NDEVS[])

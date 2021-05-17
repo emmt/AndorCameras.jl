@@ -11,34 +11,17 @@ using Libdl
 
 # List of expected macros (except error code):
 const MACROS = Dict(
-    "INFINITE" => "MSEC",
+    "INFINITE" => "Cuint",
     "TRUE" => "BOOL",
     "FALSE" => "BOOL",
     "HANDLE_UNINITIALISED" => "HANDLE",
     "HANDLE_SYSTEM" => "HANDLE",
-    "SUCCESS" => "STATUS",
-    "CALLBACK_SUCCESS" => "STATUS",
+    "SUCCESS" => "Cint",
+    "CALLBACK_SUCCESS" => "Cint",
 )
 
 function parse_header(filename::String)
-    code = [
-        "# Types.",
-        "const STATUS  = Cint     # for returned status",
-        "const HANDLE  = Cint     # AT_H in <atcore.h>",
-        "const INDEX   = Cint     # for camera index",
-        "const ENUM    = Cint     # for enumeration",
-        "const BOOL    = Cint",
-        "const INT     = Int64    # AT_64 in <atcore.h>",
-        "const FLOAT   = Cdouble",
-        "const BYTE    = UInt8    # AT_U8 in <atcore.h>",
-        "const WCHAR   = Cwchar_t # AT_WC in <atcore.h>",
-        "const STRING  = Cwstring",
-        "const FEATURE = Ptr{WCHAR}",
-        "const LENGTH  = Cint     # for string length",
-        "const MSEC    = Cuint    # for timeout in milliseconds",
-        "",
-        "# Constants.",
-    ]
+    code = ["# Constants.",]
     tail = String[]
     open(filename, "r") do io
         linenumber = 0
@@ -51,7 +34,7 @@ function parse_header(filename::String)
             if haskey(MACROS, name)
                 type = MACROS[name]
             elseif startswith(name, "ERR_")
-                type = "STATUS"
+                type = "Cint"
             else
                 continue
             end
@@ -61,7 +44,7 @@ function parse_header(filename::String)
                         "($filename, line $linenumber)")
                 continue
             end
-            push!((type == "STATUS" ? tail : code),
+            push!((type == "Cint" ? tail : code),
                   "const $name = $(type)($value)")
         end
     end

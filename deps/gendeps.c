@@ -45,28 +45,9 @@ int main(int argc, char* argv[])
   printf("# Path to the dynamic library.\n");
   printf("const _DLL = \"%s\"\n", AT_DLL);
   printf("\n");
-  printf("# Types.\n");
-  printf("const STATUS  = Cint     # for returned status\n");
-  printf("const HANDLE  = Cint     # AT_H in <atcore.h>\n");
-  printf("const INDEX   = Cint     # for camera index\n");
-  printf("const ENUM    = Cint     # for enumeration\n");
-  printf("const BOOL    = Cint\n");
-  printf("const INT     = Int64    # AT_64 in <atcore.h>\n");
-  printf("const FLOAT   = Cdouble\n");
-  printf("const BYTE    = UInt8    # AT_U8 in <atcore.h>\n");
-  printf("const WCHAR   = Cwchar_t # AT_WC in <atcore.h>\n");
-  printf("const STRING  = Cwstring\n");
-#if 0
-  printf("const FEATURE = Cwstring\n");
-#else
-  printf("const FEATURE = Ptr{WCHAR}\n");
-#endif
-  printf("const LENGTH  = Cint     # for string length\n");
-  printf("const MSEC    = Cuint    # for timeout in milliseconds\n");
-  printf("\n");
   printf("# Constants.\n");
 #ifdef AT_INFINITE
-  DEF_AT_CONST(INFINITE, " = MSEC(0x%X)");
+  DEF_AT_CONST(INFINITE, " = Cuint(0x%X)");
 #endif
 #ifdef AT_TRUE
   DEF_AT_CONST(TRUE, " = BOOL(%d)");
@@ -87,130 +68,130 @@ int main(int argc, char* argv[])
   printf("\n");
   printf("# Status codes.\n");
 #ifdef AT_SUCCESS
-  DEF_AT_CONST(SUCCESS, " = STATUS(%d)");
+  DEF_AT_CONST(SUCCESS, " = Cint(%d)");
 #endif
 #ifdef AT_CALLBACK_SUCCESS
-  DEF_AT_CONST(CALLBACK_SUCCESS, " = STATUS(%d)");
+  DEF_AT_CONST(CALLBACK_SUCCESS, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NOTINITIALISED
-  DEF_AT_CONST(ERR_NOTINITIALISED, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NOTINITIALISED, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NOTIMPLEMENTED
-  DEF_AT_CONST(ERR_NOTIMPLEMENTED, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NOTIMPLEMENTED, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_READONLY
-  DEF_AT_CONST(ERR_READONLY, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_READONLY, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NOTREADABLE
-  DEF_AT_CONST(ERR_NOTREADABLE, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NOTREADABLE, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NOTWRITABLE
-  DEF_AT_CONST(ERR_NOTWRITABLE, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NOTWRITABLE, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_OUTOFRANGE
-  DEF_AT_CONST(ERR_OUTOFRANGE, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_OUTOFRANGE, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_INDEXNOTAVAILABLE
-  DEF_AT_CONST(ERR_INDEXNOTAVAILABLE, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_INDEXNOTAVAILABLE, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_INDEXNOTIMPLEMENTED
-  DEF_AT_CONST(ERR_INDEXNOTIMPLEMENTED, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_INDEXNOTIMPLEMENTED, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_EXCEEDEDMAXSTRINGLENGTH
-  DEF_AT_CONST(ERR_EXCEEDEDMAXSTRINGLENGTH, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_EXCEEDEDMAXSTRINGLENGTH, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_CONNECTION
-  DEF_AT_CONST(ERR_CONNECTION, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_CONNECTION, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NODATA
-  DEF_AT_CONST(ERR_NODATA, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NODATA, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_INVALIDHANDLE
-  DEF_AT_CONST(ERR_INVALIDHANDLE, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_INVALIDHANDLE, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_TIMEDOUT
-  DEF_AT_CONST(ERR_TIMEDOUT, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_TIMEDOUT, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_BUFFERFULL
-  DEF_AT_CONST(ERR_BUFFERFULL, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_BUFFERFULL, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_INVALIDSIZE
-  DEF_AT_CONST(ERR_INVALIDSIZE, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_INVALIDSIZE, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_INVALIDALIGNMENT
-  DEF_AT_CONST(ERR_INVALIDALIGNMENT, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_INVALIDALIGNMENT, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_COMM
-  DEF_AT_CONST(ERR_COMM, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_COMM, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_STRINGNOTAVAILABLE
-  DEF_AT_CONST(ERR_STRINGNOTAVAILABLE, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_STRINGNOTAVAILABLE, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_STRINGNOTIMPLEMENTED
-  DEF_AT_CONST(ERR_STRINGNOTIMPLEMENTED, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_STRINGNOTIMPLEMENTED, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NULL_FEATURE
-  DEF_AT_CONST(ERR_NULL_FEATURE, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NULL_FEATURE, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NULL_HANDLE
-  DEF_AT_CONST(ERR_NULL_HANDLE, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NULL_HANDLE, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NULL_IMPLEMENTED_VAR
-  DEF_AT_CONST(ERR_NULL_IMPLEMENTED_VAR, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NULL_IMPLEMENTED_VAR, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NULL_READABLE_VAR
-  DEF_AT_CONST(ERR_NULL_READABLE_VAR, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NULL_READABLE_VAR, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NULL_READONLY_VAR
-  DEF_AT_CONST(ERR_NULL_READONLY_VAR, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NULL_READONLY_VAR, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NULL_WRITABLE_VAR
-  DEF_AT_CONST(ERR_NULL_WRITABLE_VAR, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NULL_WRITABLE_VAR, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NULL_MINVALUE
-  DEF_AT_CONST(ERR_NULL_MINVALUE, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NULL_MINVALUE, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NULL_MAXVALUE
-  DEF_AT_CONST(ERR_NULL_MAXVALUE, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NULL_MAXVALUE, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NULL_VALUE
-  DEF_AT_CONST(ERR_NULL_VALUE, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NULL_VALUE, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NULL_STRING
-  DEF_AT_CONST(ERR_NULL_STRING, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NULL_STRING, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NULL_COUNT_VAR
-  DEF_AT_CONST(ERR_NULL_COUNT_VAR, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NULL_COUNT_VAR, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NULL_ISAVAILABLE_VAR
-  DEF_AT_CONST(ERR_NULL_ISAVAILABLE_VAR, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NULL_ISAVAILABLE_VAR, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NULL_MAXSTRINGLENGTH
-  DEF_AT_CONST(ERR_NULL_MAXSTRINGLENGTH, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NULL_MAXSTRINGLENGTH, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NULL_EVCALLBACK
-  DEF_AT_CONST(ERR_NULL_EVCALLBACK, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NULL_EVCALLBACK, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NULL_QUEUE_PTR
-  DEF_AT_CONST(ERR_NULL_QUEUE_PTR, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NULL_QUEUE_PTR, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NULL_WAIT_PTR
-  DEF_AT_CONST(ERR_NULL_WAIT_PTR, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NULL_WAIT_PTR, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NULL_PTRSIZE
-  DEF_AT_CONST(ERR_NULL_PTRSIZE, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NULL_PTRSIZE, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_NOMEMORY
-  DEF_AT_CONST(ERR_NOMEMORY, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_NOMEMORY, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_DEVICEINUSE
-  DEF_AT_CONST(ERR_DEVICEINUSE, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_DEVICEINUSE, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_DEVICENOTFOUND
-  DEF_AT_CONST(ERR_DEVICENOTFOUND, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_DEVICENOTFOUND, " = Cint(%d)");
 #endif
 #ifdef AT_ERR_HARDWARE_OVERFLOW
-  DEF_AT_CONST(ERR_HARDWARE_OVERFLOW, " = STATUS(%d)");
+  DEF_AT_CONST(ERR_HARDWARE_OVERFLOW, " = Cint(%d)");
 #endif
 
   return 0;
