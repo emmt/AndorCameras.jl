@@ -7,13 +7,11 @@
 #
 # This file is part of "AndorCameras.jl" released under the MIT license.
 #
-# Copyright (C) 2017-2019, Éric Thiébaut.
+# Copyright (C) 2017-2021, Éric Thiébaut.
 #
 
 """
-```julia
-using AndorCameras.Features
-```
+    using AndorCameras.Features
 
 makes all Andor cameras feature definitions available.
 

@@ -7,7 +7,7 @@
 #
 # This file is part of "AndorCameras.jl" released under the MIT license.
 #
-# Copyright (C) 2017-2019, Éric Thiébaut.
+# Copyright (C) 2017-2021, Éric Thiébaut.
 #
 
 # A bit of magic for ccall.
@@ -30,9 +30,7 @@ function __init__()
 end
 
 """
-```julia
-checkstate(cam, state; throwerrors=false)
-```
+    checkstate(cam, state; throwerrors=false)
 
 returns whether camera `cam` is in a specific state: 0 if it must be closed
 (or not yet open), 1 if it must be open (but acquisition not running) or 2
@@ -68,10 +66,7 @@ end
 
 
 """
-
-```julia
-isfailure(status)
-```
+    isfailure(status)
 
 yields whether `status` indicates a failure.  Argument `status` is the result
 of a call to a function of the Andor SDK.
@@ -80,10 +75,7 @@ of a call to a function of the Andor SDK.
 isfailure(status::AT.Status) = (status.code != AT.SUCCESS)
 
 """
-
-```julia
-issuccess(status)
-```
+    issuccess(status)
 
 yields whether `status` indicates a success.  Argument `status` is the result
 of a call to a function of the Andor SDK.
@@ -130,10 +122,7 @@ _stop(cam::Camera) :: AT.Status =
      AT.Command(cam, AcquisitionStop))
 
 """
-
-```julia
-AndorCameras.issimcam(cam) -> boolean
-```
+    AndorCameras.issimcam(cam) -> boolean
 
 returns whether Andor camera `cam` is a simulated one, i.e. named "SimCam" in
 the documentation of Andor SDK.

@@ -7,13 +7,11 @@
 #
 # This file is part of "AndorCameras.jl" released under the MIT license.
 #
-# Copyright (C) 2017-2019, Éric Thiébaut.
+# Copyright (C) 2017-2021, Éric Thiébaut.
 #
 
 """
-```julia
-using AndorCameras.AT
-```
+    using AndorCameras.AT
 
 makes all Andor cameras constants and low-level functions available (they are
 all prefixed with `AT.`).
@@ -37,9 +35,7 @@ struct Status
 end
 
 """
-```julia
-@_call(func, rtype, proto, args...)
-```
+    @_call(func, rtype, proto, args...)
 
 yields code to call C function `func` in Andor SDK library assuming `rtype`
 is the return type of the function, `proto` is a tuple of the argument types
@@ -250,20 +246,20 @@ QueueBuffer(handle, ptr::Ptr{BYTE}, siz::Integer) =
     @_call(:AT_QueueBuffer, STATUS, (HANDLE, Ptr{BYTE}, LENGTH),
            handle, ptr, siz)
 
-WaitBuffer(handle, timeout::Integer) =
-    (refptr = Ref{Ptr{BYTE}}();
-     refsiz = Ref{LENGTH}();
-     (@_call(:AT_WaitBuffer, STATUS, (HANDLE, Ref{Ptr{BYTE}}, Ref{LENGTH}, MSEC),
-             handle, refptr, refsiz, timeout), refptr[], Int(refsiz[])))
+WaitBuffer(handle, timeout::Integer) = begin
+    refptr = Ref{Ptr{BYTE}}()
+    refsiz = Ref{LENGTH}()
+    return @_call(:AT_WaitBuffer, STATUS,
+                  (HANDLE, Ref{Ptr{BYTE}}, Ref{LENGTH}, MSEC),
+                  handle, refptr, refsiz, timeout), refptr[], Int(refsiz[]))
+end
 
 Flush(handle) =
     @_call(:AT_Flush, STATUS, (HANDLE,), handle)
 
 
 """
-```julia
-widestring(str, len = strlen(str))
-```
+    widestring(str, len = strlen(str))
 
 yields a vector of wide characters (`Cwchar_t`) with the contents of the string
 `str` and properly zero-terminated.  This buffer is independent from the input
@@ -273,16 +269,12 @@ silently truncated if the C routine treats NULL as the terminator).
 
 An alternative (without the checking of embedded NULL characters) is:
 
-```julia
-push!(transcode(Cwchar_t, str), convert(Cwchar_t, 0))
-```
+    push!(transcode(Cwchar_t, str), convert(Cwchar_t, 0))
 
 This method is used to implement the `@L_str` macro which converts a
 literal string into a wide character string.  For instance:
 
-```julia
-L"EventSelector"
-```
+    L"EventSelector"
 
 """
 function widestring(str::AbstractString,
@@ -321,10 +313,7 @@ function widestringtostring(arr::Array{WCHAR}) :: String
 end
 
 """
-
-```julia
-L"text"
-```
+    L"text"
 
 yields an array of wide characters.
 
