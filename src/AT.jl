@@ -35,7 +35,7 @@ struct Status
 end
 
 """
-    @_call(func, rtype, proto, args...)
+    @call(func, rtype, proto, args...)
 
 yields code to call C function `func` in Andor SDK library assuming `rtype`
 is the return type of the function, `proto` is a tuple of the argument types
@@ -46,28 +46,31 @@ that an instance of `AT.Status` is returned with the status code and the
 symbolic name of the called SDK function.
 
 """
-macro _call(func, rtype, args...)
+macro call(func, rtype, args...)
     rtype == :STATUS || error("return type must be STATUS")
-    qfunc = _quoted(func)
+    qfunc = quoted(func)
     expr = Expr(:call, :ccall, Expr(:tuple, qfunc, :_DLL), rtype, args...)
     return quote
         Status($qfunc, $(esc(expr)))
     end
 end
-_quoted(x::QuoteNode) = x
-_quoted(x::Symbol) = QuoteNode(x)
-_quoted(x::AbstractString) = _quoted(Symbol(x))
+quoted(x::QuoteNode) = x
+quoted(x::Symbol) = QuoteNode(x)
+quoted(x::AbstractString) = quoted(Symbol(x))
 
-InitialiseLibrary() = @_call(:AT_InitialiseLibrary, STATUS, ())
+boolean(x::Ref{BOOL}) = (x[] != FALSE)
 
-FinaliseLibrary() = @_call(:AT_FinaliseLibrary, STATUS, ())
+InitialiseLibrary() = @call(:AT_InitialiseLibrary, STATUS, ())
 
-Open(index) =
-    (ref = Ref{HANDLE}();
-     (@_call(:AT_Open, STATUS, (INDEX, Ref{HANDLE}),
-             index, ref), ref[]))
+FinaliseLibrary() = @call(:AT_FinaliseLibrary, STATUS, ())
 
-Close(handle) = @_call(:AT_Close, STATUS, (HANDLE,), handle)
+Open(index) = begin
+    result = Ref{HANDLE}()
+    status = @call(:AT_Open, STATUS, (INDEX, Ref{HANDLE}), index, result)
+    return status, result[]
+end
+
+Close(handle) = @call(:AT_Close, STATUS, (HANDLE,), handle)
 
 # FIXME: not yet interfaced:
 # typedef int (AT_EXP_CONV *FeatureCallback)(AT_H Hndl, const AT_WC* Feature, void* Context);
@@ -76,187 +79,227 @@ Close(handle) = @_call(:AT_Close, STATUS, (HANDLE,), handle)
 # int AT_EXP_CONV AT_UnregisterFeatureCallback(AT_H Hndl, const AT_WC* Feature,
 #                                              FeatureCallback EvCallback, void* Context);
 
-IsImplemented(handle, feature) =
-    (ref = Ref{BOOL}(FALSE);
-     (@_call(:AT_IsImplemented, STATUS, (HANDLE, FEATURE, Ref{BOOL}),
-             handle, feature, ref), ref[] != FALSE))
+IsImplemented(handle, feature) = begin
+    result = Ref{BOOL}(FALSE)
+    status = @call(:AT_IsImplemented, STATUS, (HANDLE, FEATURE, Ref{BOOL}),
+                   handle, feature, result)
+    return status, boolean(result)
+end
 
-IsReadable(handle, feature) =
-    (ref = Ref{BOOL}(FALSE);
-     (@_call(:AT_IsReadable, STATUS, (HANDLE, FEATURE, Ref{BOOL}),
-             handle, feature, ref), ref[] != FALSE))
+IsReadable(handle, feature) = begin
+    result = Ref{BOOL}(FALSE)
+    status = @call(:AT_IsReadable, STATUS, (HANDLE, FEATURE, Ref{BOOL}),
+                   handle, feature, result)
+    return status, boolean(result)
+end
 
-IsWritable(handle, feature) =
-    (ref = Ref{BOOL}(FALSE);
-     (@_call(:AT_IsWritable, STATUS, (HANDLE, FEATURE, Ref{BOOL}),
-             handle, feature, ref), ref[] != FALSE))
+IsWritable(handle, feature) = begin
+    result = Ref{BOOL}(FALSE)
+    status = @call(:AT_IsWritable, STATUS, (HANDLE, FEATURE, Ref{BOOL}),
+                   handle, feature, result)
+    return status, boolean(result)
+end
 
-IsReadOnly(handle, feature) =
-    (ref = Ref{BOOL}(FALSE);
-     (@_call(:AT_IsReadOnly, STATUS, (HANDLE, FEATURE, Ref{BOOL}),
-             handle, feature, ref), ref[] != FALSE))
+IsReadOnly(handle, feature) = begin
+    result = Ref{BOOL}(FALSE)
+    status = @call(:AT_IsReadOnly, STATUS, (HANDLE, FEATURE, Ref{BOOL}),
+                   handle, feature, result)
+    return status, boolean(result)
+end
 
 SetInt(handle, feature, value::Integer) =
-    @_call(:AT_SetInt, STATUS, (HANDLE, FEATURE, INT),
-           handle, feature, value)
+    @call(:AT_SetInt, STATUS, (HANDLE, FEATURE, INT),
+          handle, feature, value)
 
-GetInt(handle, feature) =
-    (ref = Ref{INT}();
-     (@_call(:AT_GetInt, STATUS, (HANDLE, FEATURE, Ref{INT}),
-             handle, feature, ref), ref[]))
+GetInt(handle, feature) = begin
+    result = Ref{INT}()
+    status = @call(:AT_GetInt, STATUS, (HANDLE, FEATURE, Ref{INT}),
+                   handle, feature, result)
+    return status, result[]
+end
 
-GetIntMin(handle, feature) =
-    (ref = Ref{INT}();
-     (@_call(:AT_GetIntMin, STATUS, (HANDLE, FEATURE, Ref{INT}),
-             handle, feature, ref), ref[]))
+GetIntMin(handle, feature) = begin
+    result = Ref{INT}()
+    status = @call(:AT_GetIntMin, STATUS, (HANDLE, FEATURE, Ref{INT}),
+                   handle, feature, result)
+    return status, result[]
+end
 
-GetIntMax(handle, feature) =
-    (ref = Ref{INT}();
-     (@_call(:AT_GetIntMax, STATUS, (HANDLE, FEATURE, Ref{INT}),
-             handle, feature, ref), ref[]))
+GetIntMax(handle, feature) = begin
+    result = Ref{INT}();
+    status = @call(:AT_GetIntMax, STATUS, (HANDLE, FEATURE, Ref{INT}),
+                   handle, feature, result)
+    return status, result[]
+end
 
 SetFloat(handle, feature, value::Real) =
-    @_call(:AT_SetFloat, STATUS, (HANDLE, FEATURE, FLOAT),
-           handle, feature, value)
+    @call(:AT_SetFloat, STATUS, (HANDLE, FEATURE, FLOAT),
+          handle, feature, value)
 
-GetFloat(handle, feature) =
-    (ref = Ref{FLOAT}();
-     (@_call(:AT_GetFloat, STATUS, (HANDLE, FEATURE, Ref{FLOAT}),
-             handle, feature, ref), ref[]))
+GetFloat(handle, feature) = begin
+    result = Ref{FLOAT}()
+    status = @call(:AT_GetFloat, STATUS, (HANDLE, FEATURE, Ref{FLOAT}),
+                   handle, feature, result)
+    return status, result[]
+end
 
-GetFloatMin(handle, feature) =
-    (ref = Ref{FLOAT}();
-     (@_call(:AT_GetFloatMin, STATUS, (HANDLE, FEATURE, Ref{FLOAT}),
-             handle, feature, ref), ref[]))
+GetFloatMin(handle, feature) = begin
+    result = Ref{FLOAT}();
+    status = @call(:AT_GetFloatMin, STATUS, (HANDLE, FEATURE, Ref{FLOAT}),
+                   handle, feature, result)
+    return status, result[]
+end
 
-GetFloatMax(handle, feature) =
-    (ref = Ref{FLOAT}();
-     (@_call(:AT_GetFloatMax, STATUS, (HANDLE, FEATURE, Ref{FLOAT}),
-             handle, feature, ref), ref[]))
+GetFloatMax(handle, feature) = begin
+    result = Ref{FLOAT}()
+    status = @call(:AT_GetFloatMax, STATUS, (HANDLE, FEATURE, Ref{FLOAT}),
+                   handle, feature, result)
+    return status, result[]
+end
 
 SetBool(handle, feature, value::Bool) =
-    @_call(:AT_SetBool, STATUS, (HANDLE, FEATURE, BOOL),
-           handle, feature, (value ? TRUE : FALSE))
+    @call(:AT_SetBool, STATUS, (HANDLE, FEATURE, BOOL),
+          handle, feature, (value ? TRUE : FALSE))
 
-GetBool(handle, feature) =
-    (ref = Ref{BOOL}();
-     (@_call(:AT_GetBool, STATUS, (HANDLE, FEATURE, Ref{BOOL}),
-             handle, feature, ref), ref[] != FALSE))
+GetBool(handle, feature) = begin
+    result = Ref{BOOL}();
+    status = @call(:AT_GetBool, STATUS, (HANDLE, FEATURE, Ref{BOOL}),
+                   handle, feature, result)
+    return status, boolean(result)
+end
 
 SetEnumIndex(handle, feature, enum::Integer) =
-    @_call(:AT_SetEnumIndex, STATUS, (HANDLE, FEATURE, ENUM),
-           handle, feature, enum)
+    @call(:AT_SetEnumIndex, STATUS, (HANDLE, FEATURE, ENUM),
+          handle, feature, enum)
 
 SetEnumerated(handle, feature, enum::Integer) =
-    @_call(:AT_SetEnumerated, STATUS, (HANDLE, FEATURE, ENUM),
-           handle, feature, enum)
+    @call(:AT_SetEnumerated, STATUS, (HANDLE, FEATURE, ENUM),
+          handle, feature, enum)
 
 SetEnumString(handle, feature, value) =
-    @_call(:AT_SetEnumString, STATUS, (HANDLE, FEATURE, Ptr{WCHAR}),
-           handle, feature, value)
+    @call(:AT_SetEnumString, STATUS, (HANDLE, FEATURE, Ptr{WCHAR}),
+          handle, feature, value)
 
 SetEnumeratedString(handle, feature, value) =
-    @_call(:AT_SetEnumeratedString, STATUS, (HANDLE, FEATURE, Ptr{WCHAR}),
-           handle, feature, value)
+    @call(:AT_SetEnumeratedString, STATUS, (HANDLE, FEATURE, Ptr{WCHAR}),
+          handle, feature, value)
 
+GetEnumIndex(handle, feature) = begin
+    result = Ref{ENUM}();
+    status = @call(:AT_GetEnumIndex, STATUS, (HANDLE, FEATURE, Ref{ENUM}),
+                   handle, feature, result)
+    return status, Int(result[])
+end
 
-GetEnumIndex(handle, feature) =
-    (ref = Ref{ENUM}();
-     (@_call(:AT_GetEnumIndex, STATUS, (HANDLE, FEATURE, Ref{ENUM}),
-             handle, feature, ref), Int(ref[])))
+GetEnumerated(handle, feature) = begin
+    result = Ref{ENUM}()
+    status = @call(:AT_GetEnumerated, STATUS, (HANDLE, FEATURE, Ref{ENUM}),
+                   handle, feature, result)
+    return status, Int(result[])
+end
 
-GetEnumerated(handle, feature) =
-    (ref = Ref{ENUM}();
-     (@_call(:AT_GetEnumerated, STATUS, (HANDLE, FEATURE, Ref{ENUM}),
-             handle, feature, ref), Int(ref[])))
+GetEnumCount(handle, feature) = begin
+    result = Ref{LENGTH}()
+    status = @call(:AT_GetEnumCount, STATUS, (HANDLE, FEATURE, Ref{LENGTH}),
+                   handle, feature, result)
+    return status, Int(result[])
+end
 
-GetEnumCount(handle, feature) =
-    (ref = Ref{LENGTH}();
-     (@_call(:AT_GetEnumCount, STATUS, (HANDLE, FEATURE, Ref{LENGTH}),
-             handle, feature, ref), Int(ref[])))
+GetEnumeratedCount(handle, feature) = begin
+    result = Ref{LENGTH}()
+    status = @call(:AT_GetEnumeratedCount, STATUS,
+                   (HANDLE, FEATURE, Ref{LENGTH}),
+                   handle, feature, result)
+    return status, Int(result[])
+end
 
-GetEnumeratedCount(handle, feature) =
-    (ref = Ref{LENGTH}();
-     (@_call(:AT_GetEnumeratedCount, STATUS, (HANDLE, FEATURE, Ref{LENGTH}),
-             handle, feature, ref), Int(ref[])))
+IsEnumIndexAvailable(handle, feature, enum::Integer) = begin
+    result = Ref{BOOL}()
+    status = @call(:AT_IsEnumIndexAvailable, STATUS,
+                   (HANDLE, FEATURE, ENUM, Ref{BOOL}),
+                   handle, feature, enum, result)
+    return status, boolean(result)
+end
 
-IsEnumIndexAvailable(handle, feature, enum::Integer) =
-    (ref = Ref{BOOL}();
-     (@_call(:AT_IsEnumIndexAvailable, STATUS,
-             (HANDLE, FEATURE, ENUM, Ref{BOOL}),
-             handle, feature, enum, ref), ref[] != FALSE))
+IsEnumeratedIndexAvailable(handle, feature, enum::Integer) = begin
+    result = Ref{BOOL}()
+    status = @call(:AT_IsEnumeratedIndexAvailable, STATUS,
+                   (HANDLE, FEATURE, ENUM, Ref{BOOL}),
+                   handle, feature, enum, result)
+    return status, boolean(result)
+end
 
-IsEnumeratedIndexAvailable(handle, feature, enum::Integer) =
-    (ref = Ref{BOOL}();
-     (@_call(:AT_IsEnumeratedIndexAvailable, STATUS,
-             (HANDLE, FEATURE, ENUM, Ref{BOOL}),
-             handle, feature, enum, ref), ref[] != FALSE))
+IsEnumIndexImplemented(handle, feature, enum::Integer) = begin
+    result = Ref{BOOL}()
+    status = @call(:AT_IsEnumIndexImplemented, STATUS,
+                   (HANDLE, FEATURE, ENUM, Ref{BOOL}),
+                   handle, feature, enum, result)
+    return status, boolean(result)
+end
 
-IsEnumIndexImplemented(handle, feature, enum::Integer) =
-    (ref = Ref{BOOL}();
-     (@_call(:AT_IsEnumIndexImplemented, STATUS,
-             (HANDLE, FEATURE, ENUM, Ref{BOOL}),
-             handle, feature, enum, ref), ref[] != FALSE))
-
-IsEnumeratedIndexImplemented(handle, feature, enum::Integer) =
-    (ref = Ref{BOOL}();
-     (@_call(:AT_IsEnumeratedIndexImplemented, STATUS,
-             (HANDLE, FEATURE, ENUM, Ref{BOOL}),
-             handle, feature, enum, ref), ref[] != FALSE))
+IsEnumeratedIndexImplemented(handle, feature, enum::Integer) = begin
+    result = Ref{BOOL}()
+    status = @call(:AT_IsEnumeratedIndexImplemented, STATUS,
+                   (HANDLE, FEATURE, ENUM, Ref{BOOL}),
+                   handle, feature, enum, result)
+    return status, boolean(result)
+end
 
 GetEnumStringByIndex(handle, feature, enum::Integer, buf::DenseVector{WCHAR}) =
     GetEnumStringByIndex(handle, feature, enum, pointer(buf), length(buf))
 
 GetEnumStringByIndex(handle, feature, enum::Integer, ptr::Ptr{WCHAR}, len::Integer) =
-    @_call(:AT_GetEnumStringByIndex, STATUS,
-           (HANDLE, FEATURE, ENUM, Ptr{WCHAR}, LENGTH),
-           handle, feature, enum, ptr, len)
+    @call(:AT_GetEnumStringByIndex, STATUS,
+          (HANDLE, FEATURE, ENUM, Ptr{WCHAR}, LENGTH),
+          handle, feature, enum, ptr, len)
 
 GetEnumeratedString(handle, feature, enum::Integer, buf::DenseVector{WCHAR}) =
     GetEnumeratedString(handle, feature, enum, pointer(buf), length(buf))
 
 GetEnumeratedString(handle, feature, enum::Integer, ptr::Ptr{WCHAR}, len::Integer) =
-    @_call(:AT_GetEnumeratedString, STATUS,
-           (HANDLE, FEATURE, ENUM, Ptr{WCHAR}, LENGTH),
-           handle, feature, enum, ptr, len)
+    @call(:AT_GetEnumeratedString, STATUS,
+          (HANDLE, FEATURE, ENUM, Ptr{WCHAR}, LENGTH),
+          handle, feature, enum, ptr, len)
 
 Command(handle, feature) =
-    @_call(:AT_Command, STATUS, (HANDLE, FEATURE), handle, feature)
+    @call(:AT_Command, STATUS, (HANDLE, FEATURE), handle, feature)
 
 SetString(handle, feature, value) =
-    @_call(:AT_SetString, STATUS, (HANDLE, FEATURE, Ptr{WCHAR}),
-           handle, feature, value)
+    @call(:AT_SetString, STATUS, (HANDLE, FEATURE, Ptr{WCHAR}),
+          handle, feature, value)
 
 GetString(handle, feature, buf::DenseVector{WCHAR}) =
     GetString(handle, feature, pointer(buf), length(buf))
 
 GetString(handle, feature, ptr::Ptr{WCHAR}, len::Integer) =
-    @_call(:AT_GetString, STATUS, (HANDLE, FEATURE, Ptr{WCHAR}, LENGTH),
-           handle, feature, ptr, len)
+    @call(:AT_GetString, STATUS, (HANDLE, FEATURE, Ptr{WCHAR}, LENGTH),
+          handle, feature, ptr, len)
 
-GetStringMaxLength(handle, feature) =
-    (ref = Ref{LENGTH}();
-     (@_call(:AT_GetStringMaxLength, STATUS, (HANDLE, FEATURE, Ref{LENGTH}),
-             handle, feature, ref), Int(ref[])))
+GetStringMaxLength(handle, feature) = begin
+    result = Ref{LENGTH}()
+    status = @call(:AT_GetStringMaxLength, STATUS,
+                   (HANDLE, FEATURE, Ref{LENGTH}),
+                   handle, feature, result)
+    return status, Int(result[])
+end
 
 QueueBuffer(handle, buf::DenseVector{BYTE}) =
     QueueBuffer(handle, pointer(buf), sizeof(buf))
 
 QueueBuffer(handle, ptr::Ptr{BYTE}, siz::Integer) =
-    @_call(:AT_QueueBuffer, STATUS, (HANDLE, Ptr{BYTE}, LENGTH),
-           handle, ptr, siz)
+    @call(:AT_QueueBuffer, STATUS, (HANDLE, Ptr{BYTE}, LENGTH),
+          handle, ptr, siz)
 
 WaitBuffer(handle, timeout::Integer) = begin
     refptr = Ref{Ptr{BYTE}}()
     refsiz = Ref{LENGTH}()
-    return @_call(:AT_WaitBuffer, STATUS,
-                  (HANDLE, Ref{Ptr{BYTE}}, Ref{LENGTH}, MSEC),
-                  handle, refptr, refsiz, timeout), refptr[], Int(refsiz[]))
+    status = @call(:AT_WaitBuffer, STATUS,
+                   (HANDLE, Ref{Ptr{BYTE}}, Ref{LENGTH}, MSEC),
+                   handle, refptr, refsiz, timeout)
+    return status, refptr[], Int(refsiz[])
 end
 
-Flush(handle) =
-    @_call(:AT_Flush, STATUS, (HANDLE,), handle)
-
+Flush(handle) = @call(:AT_Flush, STATUS, (HANDLE,), handle)
 
 """
     widestring(str, len = strlen(str))
