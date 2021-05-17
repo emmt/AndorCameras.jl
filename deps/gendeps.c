@@ -56,10 +56,10 @@ int main(int argc, char* argv[])
   DEF_AT_CONST(FALSE, " = BOOL(%d)");
 #endif
 #ifdef AT_HANDLE_UNINITIALISED
-  DEF_AT_CONST(HANDLE_UNINITIALISED, " = HANDLE(%d)");
+  DEF_AT_CONST(HANDLE_UNINITIALISED, " = Handle(%d)");
 #endif
 #ifdef AT_HANDLE_SYSTEM
-  DEF_AT_CONST(HANDLE_SYSTEM, " = HANDLE(%d)");
+  DEF_AT_CONST(HANDLE_SYSTEM, " = Handle(%d)");
 #endif
 #ifdef __linux__
   DEF_CONST(USBDEVFS_RESET, " = %u # ioctl() request to reset USB device");

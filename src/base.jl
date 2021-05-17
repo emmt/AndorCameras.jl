@@ -11,7 +11,7 @@
 #
 
 # A bit of magic for ccall.
-Base.cconvert(::Type{AT.HANDLE}, cam::Camera) = cam.handle
+Base.cconvert(::Type{AT.Handle}, cam::Camera) = cam.handle
 Base.cconvert(::Type{Cwstring}, key::AbstractFeature) =
     WideStrings.buffer(key.name)
 

@@ -14,8 +14,8 @@ const MACROS = Dict(
     "INFINITE" => "Cuint",
     "TRUE" => "BOOL",
     "FALSE" => "BOOL",
-    "HANDLE_UNINITIALISED" => "HANDLE",
-    "HANDLE_SYSTEM" => "HANDLE",
+    "HANDLE_UNINITIALISED" => "Handle",
+    "HANDLE_SYSTEM" => "Handle",
     "SUCCESS" => "Cint",
     "CALLBACK_SUCCESS" => "Cint",
 )

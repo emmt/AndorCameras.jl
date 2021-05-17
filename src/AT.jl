@@ -22,12 +22,12 @@ module AT
 import ..WideStrings
 
 # Types.
-const HANDLE  = Cint     # AT_H in <atcore.h>
-const BOOL    = Cint     # AT_BOOL in <atcore.h>
-const INT     = Int64    # AT_64 in <atcore.h>
-const BYTE    = UInt8    # AT_U8 in <atcore.h>
-const FLOAT   = Cdouble  # for {Set,Get}Float
-const STRING  = Cwstring # constant string of wide characters (not output buffer)
+struct Handle; val::Cint; end # wrap AT_H in <atcore.h>
+const BOOL    = Cint          # AT_BOOL in <atcore.h>
+const INT     = Int64         # AT_64 in <atcore.h>
+const BYTE    = UInt8         # AT_U8 in <atcore.h>
+const FLOAT   = Cdouble       # for {Set,Get}Float
+const STRING  = Cwstring      # constant string of wide characters (not output buffer)
 
 struct Status
     func::Symbol
@@ -73,12 +73,12 @@ InitialiseLibrary() = @call(:AT_InitialiseLibrary, Cint, ())
 FinaliseLibrary() = @call(:AT_FinaliseLibrary, Cint, ())
 
 Open(index) = begin
-    result = Ref{HANDLE}()
-    status = @call(:AT_Open, Cint, (Cint, Ref{HANDLE}), index, result)
+    result = Ref{Handle}()
+    status = @call(:AT_Open, Cint, (Cint, Ref{Handle}), index, result)
     return status, result[]
 end
 
-Close(handle) = @call(:AT_Close, Cint, (HANDLE,), handle)
+Close(handle) = @call(:AT_Close, Cint, (Handle,), handle)
 
 # FIXME: not yet interfaced:
 # typedef int (AT_EXP_CONV *FeatureCallback)(AT_H Hndl, const AT_WC* Feature, void* Context);
@@ -89,126 +89,126 @@ Close(handle) = @call(:AT_Close, Cint, (HANDLE,), handle)
 
 IsImplemented(handle, feature) = begin
     result = Ref{BOOL}(FALSE)
-    status = @call(:AT_IsImplemented, Cint, (HANDLE, STRING, Ref{BOOL}),
+    status = @call(:AT_IsImplemented, Cint, (Handle, STRING, Ref{BOOL}),
                    handle, feature, result)
     return status, boolean(result)
 end
 
 IsReadable(handle, feature) = begin
     result = Ref{BOOL}(FALSE)
-    status = @call(:AT_IsReadable, Cint, (HANDLE, STRING, Ref{BOOL}),
+    status = @call(:AT_IsReadable, Cint, (Handle, STRING, Ref{BOOL}),
                    handle, feature, result)
     return status, boolean(result)
 end
 
 IsWritable(handle, feature) = begin
     result = Ref{BOOL}(FALSE)
-    status = @call(:AT_IsWritable, Cint, (HANDLE, STRING, Ref{BOOL}),
+    status = @call(:AT_IsWritable, Cint, (Handle, STRING, Ref{BOOL}),
                    handle, feature, result)
     return status, boolean(result)
 end
 
 IsReadOnly(handle, feature) = begin
     result = Ref{BOOL}(FALSE)
-    status = @call(:AT_IsReadOnly, Cint, (HANDLE, STRING, Ref{BOOL}),
+    status = @call(:AT_IsReadOnly, Cint, (Handle, STRING, Ref{BOOL}),
                    handle, feature, result)
     return status, boolean(result)
 end
 
 SetInt(handle, feature, value::Integer) =
-    @call(:AT_SetInt, Cint, (HANDLE, STRING, INT),
+    @call(:AT_SetInt, Cint, (Handle, STRING, INT),
           handle, feature, value)
 
 GetInt(handle, feature) = begin
     result = Ref{INT}()
-    status = @call(:AT_GetInt, Cint, (HANDLE, STRING, Ref{INT}),
+    status = @call(:AT_GetInt, Cint, (Handle, STRING, Ref{INT}),
                    handle, feature, result)
     return status, result[]
 end
 
 GetIntMin(handle, feature) = begin
     result = Ref{INT}()
-    status = @call(:AT_GetIntMin, Cint, (HANDLE, STRING, Ref{INT}),
+    status = @call(:AT_GetIntMin, Cint, (Handle, STRING, Ref{INT}),
                    handle, feature, result)
     return status, result[]
 end
 
 GetIntMax(handle, feature) = begin
     result = Ref{INT}();
-    status = @call(:AT_GetIntMax, Cint, (HANDLE, STRING, Ref{INT}),
+    status = @call(:AT_GetIntMax, Cint, (Handle, STRING, Ref{INT}),
                    handle, feature, result)
     return status, result[]
 end
 
 SetFloat(handle, feature, value::Real) =
-    @call(:AT_SetFloat, Cint, (HANDLE, STRING, FLOAT),
+    @call(:AT_SetFloat, Cint, (Handle, STRING, FLOAT),
           handle, feature, value)
 
 GetFloat(handle, feature) = begin
     result = Ref{FLOAT}()
-    status = @call(:AT_GetFloat, Cint, (HANDLE, STRING, Ref{FLOAT}),
+    status = @call(:AT_GetFloat, Cint, (Handle, STRING, Ref{FLOAT}),
                    handle, feature, result)
     return status, result[]
 end
 
 GetFloatMin(handle, feature) = begin
     result = Ref{FLOAT}();
-    status = @call(:AT_GetFloatMin, Cint, (HANDLE, STRING, Ref{FLOAT}),
+    status = @call(:AT_GetFloatMin, Cint, (Handle, STRING, Ref{FLOAT}),
                    handle, feature, result)
     return status, result[]
 end
 
 GetFloatMax(handle, feature) = begin
     result = Ref{FLOAT}()
-    status = @call(:AT_GetFloatMax, Cint, (HANDLE, STRING, Ref{FLOAT}),
+    status = @call(:AT_GetFloatMax, Cint, (Handle, STRING, Ref{FLOAT}),
                    handle, feature, result)
     return status, result[]
 end
 
 SetBool(handle, feature, value::Bool) =
-    @call(:AT_SetBool, Cint, (HANDLE, STRING, BOOL),
+    @call(:AT_SetBool, Cint, (Handle, STRING, BOOL),
           handle, feature, (value ? TRUE : FALSE))
 
 GetBool(handle, feature) = begin
     result = Ref{BOOL}();
-    status = @call(:AT_GetBool, Cint, (HANDLE, STRING, Ref{BOOL}),
+    status = @call(:AT_GetBool, Cint, (Handle, STRING, Ref{BOOL}),
                    handle, feature, result)
     return status, boolean(result)
 end
 
 SetEnumIndex(handle, feature, enum::Integer) =
-    @call(:AT_SetEnumIndex, Cint, (HANDLE, STRING, Cint),
+    @call(:AT_SetEnumIndex, Cint, (Handle, STRING, Cint),
           handle, feature, enum)
 
 SetEnumerated(handle, feature, enum::Integer) =
-    @call(:AT_SetEnumerated, Cint, (HANDLE, STRING, Cint),
+    @call(:AT_SetEnumerated, Cint, (Handle, STRING, Cint),
           handle, feature, enum)
 
 SetEnumString(handle, feature, value) =
-    @call(:AT_SetEnumString, Cint, (HANDLE, STRING, STRING),
+    @call(:AT_SetEnumString, Cint, (Handle, STRING, STRING),
           handle, feature, value)
 
 SetEnumeratedString(handle, feature, value) =
-    @call(:AT_SetEnumeratedString, Cint, (HANDLE, STRING, STRING),
+    @call(:AT_SetEnumeratedString, Cint, (Handle, STRING, STRING),
           handle, feature, value)
 
 GetEnumIndex(handle, feature) = begin
     result = Ref{Cint}();
-    status = @call(:AT_GetEnumIndex, Cint, (HANDLE, STRING, Ref{Cint}),
+    status = @call(:AT_GetEnumIndex, Cint, (Handle, STRING, Ref{Cint}),
                    handle, feature, result)
     return status, Int(result[])
 end
 
 GetEnumerated(handle, feature) = begin
     result = Ref{Cint}()
-    status = @call(:AT_GetEnumerated, Cint, (HANDLE, STRING, Ref{Cint}),
+    status = @call(:AT_GetEnumerated, Cint, (Handle, STRING, Ref{Cint}),
                    handle, feature, result)
     return status, Int(result[])
 end
 
 GetEnumCount(handle, feature) = begin
     result = Ref{Cint}()
-    status = @call(:AT_GetEnumCount, Cint, (HANDLE, STRING, Ref{Cint}),
+    status = @call(:AT_GetEnumCount, Cint, (Handle, STRING, Ref{Cint}),
                    handle, feature, result)
     return status, Int(result[])
 end
@@ -216,7 +216,7 @@ end
 GetEnumeratedCount(handle, feature) = begin
     result = Ref{Cint}()
     status = @call(:AT_GetEnumeratedCount, Cint,
-                   (HANDLE, STRING, Ref{Cint}),
+                   (Handle, STRING, Ref{Cint}),
                    handle, feature, result)
     return status, Int(result[])
 end
@@ -224,7 +224,7 @@ end
 IsEnumIndexAvailable(handle, feature, enum::Integer) = begin
     result = Ref{BOOL}()
     status = @call(:AT_IsEnumIndexAvailable, Cint,
-                   (HANDLE, STRING, Cint, Ref{BOOL}),
+                   (Handle, STRING, Cint, Ref{BOOL}),
                    handle, feature, enum, result)
     return status, boolean(result)
 end
@@ -232,7 +232,7 @@ end
 IsEnumeratedIndexAvailable(handle, feature, enum::Integer) = begin
     result = Ref{BOOL}()
     status = @call(:AT_IsEnumeratedIndexAvailable, Cint,
-                   (HANDLE, STRING, Cint, Ref{BOOL}),
+                   (Handle, STRING, Cint, Ref{BOOL}),
                    handle, feature, enum, result)
     return status, boolean(result)
 end
@@ -240,7 +240,7 @@ end
 IsEnumIndexImplemented(handle, feature, enum::Integer) = begin
     result = Ref{BOOL}()
     status = @call(:AT_IsEnumIndexImplemented, Cint,
-                   (HANDLE, STRING, Cint, Ref{BOOL}),
+                   (Handle, STRING, Cint, Ref{BOOL}),
                    handle, feature, enum, result)
     return status, boolean(result)
 end
@@ -248,7 +248,7 @@ end
 IsEnumeratedIndexImplemented(handle, feature, enum::Integer) = begin
     result = Ref{BOOL}()
     status = @call(:AT_IsEnumeratedIndexImplemented, Cint,
-                   (HANDLE, STRING, Cint, Ref{BOOL}),
+                   (Handle, STRING, Cint, Ref{BOOL}),
                    handle, feature, enum, result)
     return status, boolean(result)
 end
@@ -258,7 +258,7 @@ GetEnumStringByIndex(handle, feature, enum::Integer, buf::DenseVector{Cwchar_t})
 
 GetEnumStringByIndex(handle, feature, enum::Integer, ptr::Ptr{Cwchar_t}, len::Integer) =
     @call(:AT_GetEnumStringByIndex, Cint,
-          (HANDLE, STRING, Cint, Ptr{Cwchar_t}, Cint),
+          (Handle, STRING, Cint, Ptr{Cwchar_t}, Cint),
           handle, feature, enum, ptr, len)
 
 GetEnumeratedString(handle, feature, enum::Integer, buf::DenseVector{Cwchar_t}) =
@@ -266,27 +266,27 @@ GetEnumeratedString(handle, feature, enum::Integer, buf::DenseVector{Cwchar_t}) 
 
 GetEnumeratedString(handle, feature, enum::Integer, ptr::Ptr{Cwchar_t}, len::Integer) =
     @call(:AT_GetEnumeratedString, Cint,
-          (HANDLE, STRING, Cint, Ptr{Cwchar_t}, Cint),
+          (Handle, STRING, Cint, Ptr{Cwchar_t}, Cint),
           handle, feature, enum, ptr, len)
 
 Command(handle, feature) =
-    @call(:AT_Command, Cint, (HANDLE, STRING), handle, feature)
+    @call(:AT_Command, Cint, (Handle, STRING), handle, feature)
 
 SetString(handle, feature, value) =
-    @call(:AT_SetString, Cint, (HANDLE, STRING, STRING),
+    @call(:AT_SetString, Cint, (Handle, STRING, STRING),
           handle, feature, value)
 
 GetString(handle, feature, buf::DenseVector{Cwchar_t}) =
     GetString(handle, feature, pointer(buf), length(buf))
 
 GetString(handle, feature, ptr::Ptr{Cwchar_t}, len::Integer) =
-    @call(:AT_GetString, Cint, (HANDLE, STRING, Ptr{Cwchar_t}, Cint),
+    @call(:AT_GetString, Cint, (Handle, STRING, Ptr{Cwchar_t}, Cint),
           handle, feature, ptr, len)
 
 GetStringMaxLength(handle, feature) = begin
     result = Ref{Cint}()
     status = @call(:AT_GetStringMaxLength, Cint,
-                   (HANDLE, STRING, Ref{Cint}),
+                   (Handle, STRING, Ref{Cint}),
                    handle, feature, result)
     return status, Int(result[])
 end
@@ -295,18 +295,18 @@ QueueBuffer(handle, buf::DenseVector{BYTE}) =
     QueueBuffer(handle, pointer(buf), sizeof(buf))
 
 QueueBuffer(handle, ptr::Ptr{BYTE}, siz::Integer) =
-    @call(:AT_QueueBuffer, Cint, (HANDLE, Ptr{BYTE}, Cint),
+    @call(:AT_QueueBuffer, Cint, (Handle, Ptr{BYTE}, Cint),
           handle, ptr, siz)
 
 WaitBuffer(handle, timeout::Integer) = begin
     refptr = Ref{Ptr{BYTE}}()
     refsiz = Ref{Cint}()
     status = @call(:AT_WaitBuffer, Cint,
-                   (HANDLE, Ref{Ptr{BYTE}}, Ref{Cint}, Cuint),
+                   (Handle, Ref{Ptr{BYTE}}, Ref{Cint}, Cuint),
                    handle, refptr, refsiz, timeout)
     return status, refptr[], Int(refsiz[])
 end
 
-Flush(handle) = @call(:AT_Flush, Cint, (HANDLE,), handle)
+Flush(handle) = @call(:AT_Flush, Cint, (Handle,), handle)
 
 end

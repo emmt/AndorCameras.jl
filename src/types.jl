@@ -47,7 +47,7 @@ mutable struct Camera <: ScientificCamera
     bytesperline::Int
     clockfrequency::Int
     model::AndorCameraModel
-    handle::AT.HANDLE
+    handle::AT.Handle
     mono12packed::Bool
     Camera() = new(0,
                    Vector{Vector{UInt8}}(undef, 0),
