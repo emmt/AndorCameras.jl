@@ -1,7 +1,7 @@
 name = "AndorCameras"
 uuid = "a6f1060a-fcb4-4ec9-a17b-f0f9a1d7da62"
 authors = ["Éric Thiébaut <eric.thiebaut@univ-lyon1.fr>"]
-version = "0.2.0"
+version = "0.2.1"
 
 [deps]
 Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
